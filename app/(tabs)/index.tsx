@@ -12,10 +12,12 @@ import {
 import { useRouter } from 'expo-router';
 import { api, Project } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 export default function ProjectsScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { isOnline, pendingCount, syncing } = useNetworkStatus();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +51,22 @@ export default function ProjectsScreen() {
 
   return (
     <View style={styles.container}>
+      {!isOnline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>⚠️ Sin conexión — modo offline activo</Text>
+        </View>
+      )}
+      {syncing && (
+        <View style={styles.syncBanner}>
+          <ActivityIndicator color="#fff" size="small" />
+          <Text style={styles.syncText}> Sincronizando fichas pendientes...</Text>
+        </View>
+      )}
+      {!syncing && pendingCount > 0 && (
+        <View style={styles.pendingBanner}>
+          <Text style={styles.pendingText}>📤 {pendingCount} ficha(s) pendiente(s) de sincronizar</Text>
+        </View>
+      )}
       <View style={styles.greeting}>
         <Text style={styles.greetingText}>Hola, {user?.firstName} 👋</Text>
         <Text style={styles.greetingSubtext}>{projects.length} proyecto(s) activos</Text>
@@ -132,6 +150,12 @@ const styles = StyleSheet.create({
   badge_construction: { backgroundColor: '#FBE9E7' },
   badge_maintenance: { backgroundColor: '#F3E5F5' },
   badge_other: { backgroundColor: '#ECEFF1' },
+  offlineBanner: { backgroundColor: '#F44336', padding: 8, alignItems: 'center' },
+  offlineText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  syncBanner: { backgroundColor: '#2196F3', padding: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  syncText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  pendingBanner: { backgroundColor: '#FF9800', padding: 8, alignItems: 'center' },
+  pendingText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   name: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
   location: { fontSize: 13, color: '#666', marginTop: 2 },
   client: { fontSize: 13, color: '#666', marginTop: 2 },
