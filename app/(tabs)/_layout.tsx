@@ -10,6 +10,7 @@ export default function TabsLayout() {
         headerTitleStyle: { fontWeight: '700' },
         tabBarActiveTintColor: '#1565C0',
         tabBarInactiveTintColor: '#9E9E9E',
+        tabBarStyle: { borderTopWidth: 1, borderTopColor: '#EEE' },
       }}
     >
       <Tabs.Screen
@@ -23,10 +24,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="fichas"
         options={{
-          title: 'Mis Fichas',
-          tabBarLabel: 'Fichas',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📝</Text>,
           href: null,
+          headerShown: false,
         }}
       />
       <Tabs.Screen

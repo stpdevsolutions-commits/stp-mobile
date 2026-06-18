@@ -8,9 +8,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { api, FichaElectricaData, Tablero, Circuito, Material } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth-context';
 
@@ -38,6 +40,7 @@ export default function NuevaFichaScreen() {
   const [saving, setSaving] = useState(false);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const [data, setData] = useState<FichaElectricaData>({
     tipoTrabajo: 'instalacion_nueva',
@@ -130,6 +133,26 @@ export default function NuevaFichaScreen() {
     updateData({ materiales: data.materiales.filter((_, i) => i !== idx) });
   }
 
+  async function pickPhoto(fromCamera: boolean) {
+    const { status } = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', fromCamera ? 'Necesitamos acceso a la cámara.' : 'Necesitamos acceso a la galería.');
+      return;
+    }
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (!result.canceled) {
+      setPhotos((prev) => [...prev, result.assets[0].uri]);
+    }
+  }
+
+  function removePhoto(uri: string) {
+    setPhotos((prev) => prev.filter((p) => p !== uri));
+  }
+
   // --- Submit ---
   async function save(submit = false) {
     setSaving(true);
@@ -140,6 +163,7 @@ export default function NuevaFichaScreen() {
         data,
         latitude,
         longitude,
+        photos,
       });
 
       if (submit) {
@@ -210,7 +234,13 @@ export default function NuevaFichaScreen() {
           />
         )}
         {step === 'observaciones' && (
-          <ObservacionesStep data={data} updateData={updateData} />
+          <ObservacionesStep
+            data={data}
+            updateData={updateData}
+            photos={photos}
+            onPickPhoto={pickPhoto}
+            onRemovePhoto={removePhoto}
+          />
         )}
       </ScrollView>
 
@@ -450,9 +480,12 @@ function MaterialesStep({ materiales, onAdd, onUpdate, onRemove }: {
   );
 }
 
-function ObservacionesStep({ data, updateData }: {
+function ObservacionesStep({ data, updateData, photos, onPickPhoto, onRemovePhoto }: {
   data: FichaElectricaData;
   updateData: (p: Partial<FichaElectricaData>) => void;
+  photos: string[];
+  onPickPhoto: (fromCamera: boolean) => void;
+  onRemovePhoto: (uri: string) => void;
 }) {
   return (
     <View style={s.section}>
@@ -476,6 +509,26 @@ function ObservacionesStep({ data, updateData }: {
         numberOfLines={5}
         textAlignVertical="top"
       />
+
+      <Label>Fotos ({photos.length})</Label>
+      <View style={s.photoRow}>
+        {photos.map((uri) => (
+          <View key={uri} style={s.photoThumb}>
+            <Image source={{ uri }} style={s.photoImg} />
+            <TouchableOpacity style={s.photoRemove} onPress={() => onRemovePhoto(uri)}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+      <View style={s.photoActions}>
+        <TouchableOpacity style={s.photoBtn} onPress={() => onPickPhoto(true)}>
+          <Text style={s.photoBtnText}>📷 Cámara</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.photoBtn} onPress={() => onPickPhoto(false)}>
+          <Text style={s.photoBtnText}>🖼️ Galería</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -578,4 +631,11 @@ const s = StyleSheet.create({
   addBtn: { borderWidth: 1.5, borderColor: '#1565C0', borderStyle: 'dashed', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 4 },
   addBtnText: { color: '#1565C0', fontWeight: '600', fontSize: 14 },
   gps: { fontSize: 12, color: '#4CAF50', marginTop: 12, fontWeight: '600' },
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  photoThumb: { position: 'relative', width: 80, height: 80 },
+  photoImg: { width: 80, height: 80, borderRadius: 8 },
+  photoRemove: { position: 'absolute', top: 2, right: 2, backgroundColor: '#F44336', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
+  photoActions: { flexDirection: 'row', gap: 8 },
+  photoBtn: { flex: 1, borderWidth: 1.5, borderColor: '#1565C0', borderStyle: 'dashed', borderRadius: 8, padding: 12, alignItems: 'center' },
+  photoBtnText: { color: '#1565C0', fontWeight: '600' },
 });

@@ -45,17 +45,17 @@ export default function FichaDetailScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function addPhoto() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  async function addPhoto(fromCamera: boolean) {
+    const { status } = fromCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para adjuntar fotos.');
+      Alert.alert('Permiso requerido', fromCamera ? 'Necesitamos acceso a la cámara.' : 'Necesitamos acceso a la galería.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-      allowsEditing: false,
-    });
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: false })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (result.canceled) return;
 
     setUploading(true);
@@ -74,6 +74,14 @@ export default function FichaDetailScreen() {
     } finally {
       setUploading(false);
     }
+  }
+
+  function confirmAddPhoto() {
+    Alert.alert('Agregar foto', '¿De dónde deseas agregar la foto?', [
+      { text: 'Cámara', onPress: () => addPhoto(true) },
+      { text: 'Galería', onPress: () => addPhoto(false) },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   }
 
   async function handleSubmit() {
@@ -195,7 +203,7 @@ export default function FichaDetailScreen() {
           ))}
         </ScrollView>
         {canEdit && (
-          <TouchableOpacity style={styles.addPhotoBtn} onPress={addPhoto} disabled={uploading}>
+          <TouchableOpacity style={styles.addPhotoBtn} onPress={confirmAddPhoto} disabled={uploading}>
             {uploading
               ? <ActivityIndicator color="#1565C0" />
               : <Text style={styles.addPhotoBtnText}>📷 Agregar foto</Text>
