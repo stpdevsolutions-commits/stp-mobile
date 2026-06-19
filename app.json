@@ -38,6 +38,7 @@
         "backgroundColor": "#1565C0",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
+      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
