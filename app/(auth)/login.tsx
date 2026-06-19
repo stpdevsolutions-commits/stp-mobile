@@ -26,8 +26,12 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
-    } catch {
-      Alert.alert('Error', 'Credenciales incorrectas. Verifica tu correo y contraseña.');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const msg = status === 401
+        ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
+        : `No se pudo conectar al servidor (${status ?? 'sin respuesta'}). Verifica que estés en la red de STP.`;
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
