@@ -24,8 +24,8 @@ export default function ProjectsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get<Project[]>('/projects');
-      setProjects(data.filter((p) => p.status === 'active'));
+      const { data } = await api.get<{ data: Project[] }>('/projects', { params: { limit: 100 } });
+      setProjects((data.data ?? []).filter((p) => p.status === 'active'));
     } catch {
       Alert.alert('Error', 'No se pudieron cargar los proyectos');
     } finally {
