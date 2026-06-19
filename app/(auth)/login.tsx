@@ -28,10 +28,11 @@ export default function LoginScreen() {
       await login(email.trim().toLowerCase(), password);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
+      const errMsg = (err as { message?: string })?.message ?? 'Error desconocido';
       const msg = status === 401
         ? 'Credenciales incorrectas. Verifica tu correo y contraseña.'
-        : `No se pudo conectar al servidor (${status ?? 'sin respuesta'}). Verifica que estés en la red de STP.`;
-      Alert.alert('Error', msg);
+        : errMsg;
+      Alert.alert('Error al iniciar sesión', msg);
     } finally {
       setLoading(false);
     }

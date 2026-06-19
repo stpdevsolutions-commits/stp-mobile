@@ -27,9 +27,14 @@ api.interceptors.response.use(
 );
 
 export async function login(email: string, password: string) {
-  const { data } = await api.post<{ access_token: string }>('/auth/login', { email, password });
-  await SecureStore.setItemAsync('access_token', data.access_token);
-  return data;
+  const response = await api.post('/auth/login', { email, password });
+  const body = response.data as Record<string, unknown>;
+  const token = body?.access_token;
+  if (typeof token !== 'string' || !token) {
+    throw new Error(`El servidor no devolvió un token válido. Respuesta: ${JSON.stringify(body)}`);
+  }
+  await SecureStore.setItemAsync('access_token', token);
+  return body as { access_token: string; user: User };
 }
 
 export async function logout() {
