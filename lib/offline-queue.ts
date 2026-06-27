@@ -42,10 +42,11 @@ export async function getPendingCount(): Promise<number> {
   return queue.length;
 }
 
-async function uploadLocalPhotos(uris: string[]): Promise<string[]> {
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stpsoluciones.com';
+
+async function uploadLocalPhotos(uris: string[], projectId: string): Promise<string[]> {
   const results: string[] = [];
   for (const uri of uris) {
-    // Already a remote URL — keep it
     if (uri.startsWith('http://') || uri.startsWith('https://')) {
       results.push(uri);
       continue;
@@ -53,10 +54,12 @@ async function uploadLocalPhotos(uris: string[]): Promise<string[]> {
     try {
       const formData = new FormData();
       formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
-      const { data } = await api.post<{ url: string }>('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      results.push(data.url);
+      const { data } = await api.post<{ id: string; url: string }>(
+        `/files/fichas-photo?projectId=${projectId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      results.push(`${API_URL}${data.url}`);
     } catch {
       // Foto individual falla — no bloqueamos la creación de la ficha
     }
@@ -78,7 +81,7 @@ export async function syncQueue(
 
   for (const item of queue) {
     try {
-      const photoUrls = item.photos.length > 0 ? await uploadLocalPhotos(item.photos) : [];
+      const photoUrls = item.photos.length > 0 ? await uploadLocalPhotos(item.photos, item.projectId) : [];
 
       const { data: ficha } = await api.post('/fichas', {
         type: item.type,

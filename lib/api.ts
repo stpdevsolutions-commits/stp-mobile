@@ -37,6 +37,17 @@ export async function login(email: string, password: string) {
   return body as { access_token: string; user: User };
 }
 
+export async function loginWithGoogle(accessToken: string) {
+  const response = await api.post('/auth/google', { accessToken });
+  const body = response.data as Record<string, unknown>;
+  const token = body?.access_token;
+  if (typeof token !== 'string' || !token) {
+    throw new Error('El servidor no devolvió un token válido');
+  }
+  await SecureStore.setItemAsync('access_token', token);
+  return body as { access_token: string; user: User };
+}
+
 export async function logout() {
   await SecureStore.deleteItemAsync('access_token');
 }

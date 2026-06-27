@@ -124,15 +124,20 @@ export default function NuevaFichaScreen() {
     : gpsAccuracy <= 30 ? 'fair'
     : 'poor';
 
+  const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stpsoluciones.com';
+
   async function uploadPhotos(uris: string[]): Promise<string[]> {
+    if (!projectId) return [];
     const urls: string[] = [];
     for (const uri of uris) {
       const formData = new FormData();
       formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
-      const { data: uploaded } = await api.post<{ url: string }>('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      urls.push(uploaded.url);
+      const { data: uploaded } = await api.post<{ id: string; url: string }>(
+        `/files/fichas-photo?projectId=${projectId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      urls.push(`${API_URL}${uploaded.url}`);
     }
     return urls;
   }

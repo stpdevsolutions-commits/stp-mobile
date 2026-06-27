@@ -26,8 +26,9 @@ export default function ProjectsScreen() {
     try {
       const { data } = await api.get<{ data: Project[] }>('/projects', { params: { limit: 100 } });
       setProjects((data.data ?? []).filter((p) => p.status === 'active'));
-    } catch {
-      Alert.alert('Error', 'No se pudieron cargar los proyectos');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status !== 401) Alert.alert('Error', 'No se pudieron cargar los proyectos');
     } finally {
       setLoading(false);
       setRefreshing(false);

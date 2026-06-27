@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { getProfile, login as apiLogin, logout as apiLogout, User } from './api';
+import { getProfile, login as apiLogin, loginWithGoogle as apiLoginWithGoogle, logout as apiLogout, User } from './api';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthState>({
   user: null,
   loading: true,
   login: async () => {},
+  loginWithGoogle: async () => {},
   logout: async () => {},
 });
 
@@ -42,13 +44,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(profile);
   }
 
+  async function loginWithGoogle(accessToken: string) {
+    await apiLoginWithGoogle(accessToken);
+    const profile = await getProfile();
+    setUser(profile);
+  }
+
   async function logout() {
     await apiLogout();
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
