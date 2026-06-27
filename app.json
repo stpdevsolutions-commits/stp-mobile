@@ -27,7 +27,8 @@
           "locationAlwaysAndWhenInUsePermission": "Necesitamos tu ubicación para registrar el GPS de la ficha."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "ios": {
       "supportsTablet": true,
