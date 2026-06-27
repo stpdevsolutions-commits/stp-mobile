@@ -17,7 +17,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 export default function ProjectsScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const { isOnline, pendingCount, syncing } = useNetworkStatus();
+  const { isOnline, pendingCount, syncing, syncProgress, triggerSync } = useNetworkStatus();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,12 +59,21 @@ export default function ProjectsScreen() {
       {syncing && (
         <View style={styles.syncBanner}>
           <ActivityIndicator color="#fff" size="small" />
-          <Text style={styles.syncText}> Sincronizando fichas pendientes...</Text>
+          <Text style={styles.syncText}>
+            {syncProgress
+              ? ` Sincronizando ${syncProgress.done}/${syncProgress.total} fichas...`
+              : ' Sincronizando fichas pendientes...'}
+          </Text>
         </View>
       )}
       {!syncing && pendingCount > 0 && (
         <View style={styles.pendingBanner}>
-          <Text style={styles.pendingText}>📤 {pendingCount} ficha(s) pendiente(s) de sincronizar</Text>
+          <Text style={styles.pendingText}>📤 {pendingCount} ficha(s) pendiente(s)</Text>
+          {isOnline && (
+            <TouchableOpacity onPress={() => void triggerSync()} style={styles.syncNowBtn}>
+              <Text style={styles.syncNowText}>Sincronizar ahora</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
       <View style={styles.greeting}>
@@ -154,8 +163,10 @@ const styles = StyleSheet.create({
   offlineText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   syncBanner: { backgroundColor: '#2196F3', padding: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   syncText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  pendingBanner: { backgroundColor: '#FF9800', padding: 8, alignItems: 'center' },
+  pendingBanner: { backgroundColor: '#FF9800', padding: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   pendingText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  syncNowBtn: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 3 },
+  syncNowText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   name: { fontSize: 17, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
   location: { fontSize: 13, color: '#666', marginTop: 2 },
   client: { fontSize: 13, color: '#666', marginTop: 2 },

@@ -90,6 +90,7 @@ export default function NuevaFichaScreen() {
   const [observaciones, setObservaciones] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function NuevaFichaScreen() {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setLatitude(loc.coords.latitude);
           setLongitude(loc.coords.longitude);
+          setGpsAccuracy(loc.coords.accuracy);
         }
       } catch {}
     })();
@@ -114,7 +116,13 @@ export default function NuevaFichaScreen() {
   const steps = fichaType ? [...getSteps(fichaType), 'resumen'] : [];
   const currentStep = steps[stepIdx] ?? '';
   const isLast = stepIdx === steps.length - 1;
-  const gpsText = latitude !== null ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}` : undefined;
+  const gpsText = latitude !== null
+    ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}${gpsAccuracy !== null ? ` · ±${Math.round(gpsAccuracy)}m` : ''}`
+    : undefined;
+  const gpsQuality = gpsAccuracy === null ? 'none'
+    : gpsAccuracy <= 10 ? 'good'
+    : gpsAccuracy <= 30 ? 'fair'
+    : 'poor';
 
   async function uploadPhotos(uris: string[]): Promise<string[]> {
     const urls: string[] = [];
@@ -184,8 +192,11 @@ export default function NuevaFichaScreen() {
         });
         Alert.alert('Sin conexión', 'Ficha guardada localmente. Se enviará automáticamente cuando recuperes la señal.', [{ text: 'OK', onPress: () => router.back() }]);
       }
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar la ficha');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? (err as { message?: string })?.message
+        ?? 'No se pudo guardar la ficha';
+      Alert.alert('Error al guardar', msg);
     } finally {
       setSaving(false);
     }
@@ -231,6 +242,11 @@ export default function NuevaFichaScreen() {
             <Text style={[s.dotText, i <= stepIdx && s.dotTextActive]}>{i + 1}</Text>
           </TouchableOpacity>
         ))}
+        <View style={[s.gpsChip, s[`gpsChip_${gpsQuality}`]]}>
+          <Text style={s.gpsChipText}>
+            {gpsQuality === 'none' ? '📍 GPS…' : gpsQuality === 'good' ? `📍 ±${Math.round(gpsAccuracy!)}m` : gpsQuality === 'fair' ? `📍 ±${Math.round(gpsAccuracy!)}m` : `📍 ±${Math.round(gpsAccuracy!)}m`}
+          </Text>
+        </View>
       </View>
       <Text style={s.stepTitle}>{getStepLabel(fichaType, currentStep)}</Text>
 
@@ -343,7 +359,13 @@ const s = StyleSheet.create({
   typeCard: { backgroundColor: '#fff', borderRadius: 12, padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
   typeLabel: { fontSize: 17, fontWeight: '600', color: '#1A1A2E' },
   typeArrow: { fontSize: 20, color: '#1565C0' },
-  progress: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', gap: 6, justifyContent: 'center', flexWrap: 'wrap' },
+  progress: { flexDirection: 'row', padding: 12, backgroundColor: '#fff', gap: 6, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' },
+  gpsChip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#E0E0E0' },
+  gpsChip_none: { backgroundColor: '#EEEEEE' },
+  gpsChip_good: { backgroundColor: '#C8E6C9' },
+  gpsChip_fair: { backgroundColor: '#FFF9C4' },
+  gpsChip_poor: { backgroundColor: '#FFCCBC' },
+  gpsChipText: { fontSize: 11, fontWeight: '600', color: '#444' },
   dot: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' },
   dotActive: { backgroundColor: '#1565C0' },
   dotText: { color: '#888', fontWeight: '700', fontSize: 12 },

@@ -64,12 +64,16 @@ async function uploadLocalPhotos(uris: string[]): Promise<string[]> {
   return results;
 }
 
-export async function syncQueue(): Promise<{ synced: number; failed: number }> {
+export async function syncQueue(
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ synced: number; failed: number }> {
   const queue = await getQueue();
   if (queue.length === 0) return { synced: 0, failed: 0 };
 
+  const total = queue.length;
   let synced = 0;
   let failed = 0;
+  let done = 0;
   const remaining: QueuedFicha[] = [];
 
   for (const item of queue) {
@@ -93,6 +97,8 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
       failed++;
       remaining.push(item);
     }
+    done++;
+    onProgress?.(done, total);
   }
 
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
