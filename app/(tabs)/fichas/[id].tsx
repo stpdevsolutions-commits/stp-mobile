@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
 import * as ImagePicker from 'expo-image-picker';
 import { api, Ficha } from '../../../lib/api';
 import Svg, { Path } from 'react-native-svg';
@@ -92,13 +92,16 @@ export default function FichaDetailScreen() {
     setDownloadingPdf(true);
     try {
       const { data: html } = await api.get<string>(`/fichas/${id}/pdf`);
-      const path = `${FileSystem.cacheDirectory}ficha-${id}.html`;
-      await FileSystem.writeAsStringAsync(path, html, { encoding: FileSystem.EncodingType.UTF8 });
+      const { uri } = await Print.printToFileAsync({ html });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(path, { mimeType: 'text/html', dialogTitle: `Ficha ${ficha?.code}` });
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Ficha ${ficha?.code ?? ''}`,
+          UTI: 'com.adobe.pdf',
+        });
       } else {
-        Alert.alert('PDF', 'Compartir no disponible en este dispositivo');
+        Alert.alert('PDF generado', 'El archivo se guardó en el dispositivo');
       }
     } catch {
       Alert.alert('Error', 'No se pudo generar el PDF');

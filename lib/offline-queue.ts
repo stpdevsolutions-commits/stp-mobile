@@ -42,6 +42,28 @@ export async function getPendingCount(): Promise<number> {
   return queue.length;
 }
 
+async function uploadLocalPhotos(uris: string[]): Promise<string[]> {
+  const results: string[] = [];
+  for (const uri of uris) {
+    // Already a remote URL — keep it
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      results.push(uri);
+      continue;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
+      const { data } = await api.post<{ url: string }>('/files/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      results.push(data.url);
+    } catch {
+      // Foto individual falla — no bloqueamos la creación de la ficha
+    }
+  }
+  return results;
+}
+
 export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   const queue = await getQueue();
   if (queue.length === 0) return { synced: 0, failed: 0 };
@@ -52,13 +74,15 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
 
   for (const item of queue) {
     try {
+      const photoUrls = item.photos.length > 0 ? await uploadLocalPhotos(item.photos) : [];
+
       const { data: ficha } = await api.post('/fichas', {
         type: item.type,
         projectId: item.projectId,
         data: item.data,
         latitude: item.latitude,
         longitude: item.longitude,
-        photos: item.photos,
+        photos: photoUrls,
         signature: item.signature || undefined,
       });
       if (item.submit) {

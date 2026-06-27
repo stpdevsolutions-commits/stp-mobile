@@ -116,26 +116,72 @@ export default function NuevaFichaScreen() {
   const isLast = stepIdx === steps.length - 1;
   const gpsText = latitude !== null ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}` : undefined;
 
+  async function uploadPhotos(uris: string[]): Promise<string[]> {
+    const urls: string[] = [];
+    for (const uri of uris) {
+      const formData = new FormData();
+      formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
+      const { data: uploaded } = await api.post<{ url: string }>('/files/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      urls.push(uploaded.url);
+    }
+    return urls;
+  }
+
+  function validateForSubmit(): string | null {
+    if (!fichaType || !data) return null;
+    const d = data as unknown as Record<string, unknown>;
+    if (fichaType === 'electrico' && !d.tipoTrabajo) return 'Selecciona el tipo de trabajo eléctrico.';
+    if (fichaType === 'civil' && !d.tipoTrabajo) return 'Selecciona el tipo de trabajo civil.';
+    if (fichaType === 'electromecanico' && !d.tipoTrabajo) return 'Selecciona el tipo de trabajo.';
+    if (fichaType === 'levantamiento' && !d.proposito) return 'Selecciona el propósito del levantamiento.';
+    if (fichaType === 'evaluacion_danos') {
+      if (!d.causaDano) return 'Selecciona la causa del daño.';
+      if (!d.urgencia) return 'Selecciona la urgencia de intervención.';
+    }
+    return null;
+  }
+
   async function save(submit: boolean) {
     if (!fichaType || !data) return;
+
+    if (submit) {
+      const validationError = validateForSubmit();
+      if (validationError) {
+        Alert.alert('Campos requeridos', validationError);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      const payload = {
-        type: fichaType,
-        projectId,
-        data: { ...(data as unknown as Record<string, unknown>), observacionesGenerales: observaciones },
-        latitude,
-        longitude,
-        photos,
-        signature: signature || undefined,
-      };
+      const fichaData = { ...(data as unknown as Record<string, unknown>), observacionesGenerales: observaciones };
 
       if (isOnline) {
-        const { data: ficha } = await api.post('/fichas', payload);
+        const photoUrls = photos.length > 0 ? await uploadPhotos(photos) : [];
+        const { data: ficha } = await api.post('/fichas', {
+          type: fichaType,
+          projectId,
+          data: fichaData,
+          latitude,
+          longitude,
+          photos: photoUrls,
+          signature: signature || undefined,
+        });
         if (submit) await api.post(`/fichas/${ficha.id}/submit`);
         Alert.alert('✓', submit ? 'Ficha enviada correctamente' : 'Ficha guardada como borrador', [{ text: 'OK', onPress: () => router.back() }]);
       } else {
-        await enqueue({ ...payload, submit, signature: signature || '' });
+        await enqueue({
+          type: fichaType,
+          projectId: projectId ?? '',
+          data: fichaData,
+          latitude,
+          longitude,
+          photos, // URIs locales; syncQueue los sube al recuperar señal
+          signature: signature || '',
+          submit,
+        });
         Alert.alert('Sin conexión', 'Ficha guardada localmente. Se enviará automáticamente cuando recuperes la señal.', [{ text: 'OK', onPress: () => router.back() }]);
       }
     } catch {

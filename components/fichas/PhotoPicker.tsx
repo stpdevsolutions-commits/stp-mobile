@@ -22,8 +22,8 @@ export default function PhotoPicker({ photos, onChange, maxPhotos = 10 }: Props)
       return;
     }
     const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, allowsMultipleSelection: true });
+      ? await ImagePicker.launchCameraAsync({ quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsMultipleSelection: true });
     if (result.canceled) return;
     const uris = result.assets.map((a) => a.uri);
     onChange([...photos, ...uris].slice(0, maxPhotos));

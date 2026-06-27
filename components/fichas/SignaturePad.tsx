@@ -11,7 +11,7 @@ interface Props {
 interface Point { x: number; y: number }
 
 export default function SignaturePad({ onSave, onClear, initialValue }: Props) {
-  const [paths, setPaths] = useState<string[]>(initialValue ? [initialValue] : []);
+  const [paths, setPaths] = useState<string[]>(initialValue ? initialValue.split('|').filter(Boolean) : []);
   const [currentPath, setCurrentPath] = useState('');
   const currentPoints = useRef<Point[]>([]);
 

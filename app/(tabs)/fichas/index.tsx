@@ -18,6 +18,14 @@ const STATUS_LABEL: Record<string, string> = {
   enviada: 'Enviada',
 };
 
+const TYPE_LABEL: Record<string, string> = {
+  electrico: 'Eléctrica',
+  civil: 'Civil',
+  electromecanico: 'Electromecánica',
+  levantamiento: 'Levantamiento',
+  evaluacion_danos: 'Evaluación de daños',
+};
+
 const STATUS_COLOR: Record<string, string> = {
   borrador: '#FF9800',
   en_progreso: '#2196F3',
@@ -86,7 +94,7 @@ export default function FichasScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.type}>Ficha {item.type === 'electrico' ? 'Eléctrica' : item.type}</Text>
+            <Text style={styles.type}>Ficha {TYPE_LABEL[item.type] ?? item.type}</Text>
             <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString('es-DO')}</Text>
             {item.photos?.length > 0 && (
               <Text style={styles.photos}>📷 {item.photos.length} foto(s)</Text>
