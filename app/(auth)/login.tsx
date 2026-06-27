@@ -19,6 +19,11 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
+// El cliente Android de Google requiere el esquema inverso del client ID como redirect URI
+const ANDROID_REDIRECT_URI = GOOGLE_ANDROID_CLIENT_ID
+  ? `com.googleusercontent.apps.${GOOGLE_ANDROID_CLIENT_ID.replace('.apps.googleusercontent.com', '')}:/oauthredirect`
+  : undefined;
+
 export default function LoginScreen() {
   const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
@@ -29,6 +34,7 @@ export default function LoginScreen() {
   const [, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    redirectUri: Platform.OS === 'android' ? ANDROID_REDIRECT_URI : undefined,
   });
 
   useEffect(() => {
