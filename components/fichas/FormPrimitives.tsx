@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export function Label({ children }: { children: React.ReactNode }) {
   return <Text style={s.label}>{children}</Text>;
@@ -24,7 +25,7 @@ export function Field({
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#BBB"
+        placeholderTextColor="#C0CADB"
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         keyboardType={keyboardType ?? 'default'}
@@ -49,6 +50,7 @@ export function OptionGroup({
           key={o.value}
           style={[s.option, selected === o.value && s.optionSelected]}
           onPress={() => onSelect(o.value)}
+          activeOpacity={0.75}
         >
           <Text style={[s.optionText, selected === o.value && s.optionTextSelected]}>
             {o.label}
@@ -67,17 +69,12 @@ export function BooleanToggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <View style={s.toggleRow}>
+    <TouchableOpacity style={s.toggleRow} onPress={() => onChange(!value)} activeOpacity={0.8}>
       <Text style={s.toggleLabel}>{label}</Text>
-      <TouchableOpacity
-        style={[s.toggle, value && s.toggleOn]}
-        onPress={() => onChange(!value)}
-      >
-        <Text style={[s.toggleText, value && s.toggleTextOn]}>
-          {value ? 'Sí' : 'No'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+      <View style={[s.toggle, value && s.toggleOn]}>
+        <View style={[s.toggleThumb, value && s.toggleThumbOn]} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -90,8 +87,12 @@ export function ItemCard({ title, onRemove, children }: {
     <View style={s.itemCard}>
       <View style={s.itemHeader}>
         <Text style={s.itemTitle}>{title}</Text>
-        <TouchableOpacity onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.removeBtn}>✕</Text>
+        <TouchableOpacity
+          style={s.removeBtn}
+          onPress={onRemove}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="close-circle" size={20} color="#EF4444" />
         </TouchableOpacity>
       </View>
       {children}
@@ -101,7 +102,8 @@ export function ItemCard({ title, onRemove, children }: {
 
 export function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <TouchableOpacity style={s.addBtn} onPress={onPress}>
+    <TouchableOpacity style={s.addBtn} onPress={onPress} activeOpacity={0.75}>
+      <Ionicons name="add-circle-outline" size={18} color="#1565C0" />
       <Text style={s.addBtnText}>{label}</Text>
     </TouchableOpacity>
   );
@@ -112,25 +114,77 @@ export function SectionContainer({ children }: { children: React.ReactNode }) {
 }
 
 const s = StyleSheet.create({
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginTop: 12, marginBottom: 4 },
-  input: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#fff', color: '#222' },
-  textarea: { height: 80, textAlignVertical: 'top' },
-  optionGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  option: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6, borderWidth: 1, borderColor: '#DDD', backgroundColor: '#fff' },
-  optionSelected: { backgroundColor: '#1565C0', borderColor: '#1565C0' },
-  optionText: { fontSize: 13, color: '#555' },
-  optionTextSelected: { color: '#fff', fontWeight: '600' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 8 },
-  toggleLabel: { fontSize: 14, color: '#333', flex: 1 },
-  toggle: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: '#DDD', backgroundColor: '#fff' },
-  toggleOn: { backgroundColor: '#1565C0', borderColor: '#1565C0' },
-  toggleText: { color: '#555', fontWeight: '600' },
-  toggleTextOn: { color: '#fff' },
-  itemCard: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#EEE' },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 14,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    backgroundColor: '#F8FAFC',
+    color: '#0D1B2A',
+  },
+  textarea: { height: 88, textAlignVertical: 'top' },
+
+  optionGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  option: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  optionSelected:     { backgroundColor: '#1565C0', borderColor: '#1565C0' },
+  optionText:         { fontSize: 13, color: '#64748B', fontWeight: '600' },
+  optionTextSelected: { color: '#fff', fontWeight: '700' },
+
+  toggleRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 10 },
+  toggleLabel:    { fontSize: 14, color: '#0D1B2A', flex: 1, fontWeight: '500' },
+  toggle:         { width: 48, height: 28, borderRadius: 14, backgroundColor: '#E2E8F0', justifyContent: 'center', paddingHorizontal: 3 },
+  toggleOn:       { backgroundColor: '#1565C0' },
+  toggleThumb:    { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
+  toggleThumbOn:  { alignSelf: 'flex-end' },
+
+  itemCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  itemTitle: { fontSize: 14, fontWeight: '700', color: '#1565C0' },
-  removeBtn: { fontSize: 16, color: '#F44336', padding: 4 },
-  addBtn: { borderWidth: 1.5, borderColor: '#1565C0', borderStyle: 'dashed', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 4, marginBottom: 16 },
-  addBtnText: { color: '#1565C0', fontWeight: '600', fontSize: 14 },
+  itemTitle:  { fontSize: 14, fontWeight: '700', color: '#1565C0' },
+  removeBtn:  { padding: 2 },
+
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: '#1565C0',
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 4,
+    marginBottom: 16,
+    backgroundColor: '#EFF6FF',
+  },
+  addBtnText: { color: '#1565C0', fontWeight: '700', fontSize: 14 },
+
   section: { padding: 16 },
 });

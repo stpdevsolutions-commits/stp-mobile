@@ -1,36 +1,91 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
+  Animated, FlatList, RefreshControl, StyleSheet,
+  Text, TouchableOpacity, View, ActivityIndicator, Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api, Ficha } from '../../../lib/api';
 
 const STATUS_LABEL: Record<string, string> = {
-  borrador: 'Borrador',
+  borrador:    'Borrador',
   en_progreso: 'En progreso',
-  enviada: 'Enviada',
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  electrico: 'Eléctrica',
-  civil: 'Civil',
-  electromecanico: 'Electromecánica',
-  levantamiento: 'Levantamiento',
-  evaluacion_danos: 'Evaluación de daños',
+  enviada:     'Enviada',
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  borrador: '#FF9800',
+  borrador:    '#F59E0B',
   en_progreso: '#2196F3',
-  enviada: '#4CAF50',
+  enviada:     '#10B981',
 };
+
+const TYPE_LABEL: Record<string, string> = {
+  electrico:        'Eléctrica',
+  civil:            'Civil',
+  electromecanico:  'Electromecánica',
+  levantamiento:    'Levantamiento',
+  evaluacion_danos: 'Evaluación de daños',
+};
+
+const TYPE_ICON: Record<string, string> = {
+  electrico:        'flash-outline',
+  civil:            'construct-outline',
+  electromecanico:  'cog-outline',
+  levantamiento:    'cube-outline',
+  evaluacion_danos: 'warning-outline',
+};
+
+function FichaCard({ item, onPress }: { item: Ficha; onPress: () => void }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn = () =>
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+  const pressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+
+  const statusColor = STATUS_COLOR[item.status] ?? '#94A3B8';
+  const icon = TYPE_ICON[item.type] ?? 'document-outline';
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        style={[s.card, { borderLeftColor: statusColor }]}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+        activeOpacity={1}
+      >
+        <View style={s.cardTop}>
+          <View style={s.typeChip}>
+            <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={14} color="#1565C0" />
+            <Text style={s.typeText}> {TYPE_LABEL[item.type] ?? item.type}</Text>
+          </View>
+          <View style={[s.statusBadge, { backgroundColor: statusColor + '22' }]}>
+            <Text style={[s.statusText, { color: statusColor }]}>
+              {STATUS_LABEL[item.status]}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={s.code}>{item.code}</Text>
+
+        <View style={s.cardBottom}>
+          <View style={s.metaRow}>
+            <Ionicons name="calendar-outline" size={13} color="#94A3B8" />
+            <Text style={s.metaText}>
+              {' '}{new Date(item.createdAt).toLocaleDateString('es-DO')}
+            </Text>
+          </View>
+          {item.photos?.length > 0 && (
+            <View style={s.metaRow}>
+              <Ionicons name="camera-outline" size={13} color="#94A3B8" />
+              <Text style={s.metaText}> {item.photos.length} foto{item.photos.length !== 1 ? 's' : ''}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 export default function FichasScreen() {
   const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
@@ -53,109 +108,118 @@ export default function FichasScreen() {
   }, [projectId]);
 
   useEffect(() => { void load(); }, [load]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void load();
-  }, [load]);
+  const onRefresh = useCallback(() => { setRefreshing(true); void load(); }, [load]);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1565C0" />
-      </View>
-    );
+    return <View style={s.center}><ActivityIndicator size="large" color="#1565C0" /></View>;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       {projectName ? (
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>{decodeURIComponent(projectName)}</Text>
-          <Text style={styles.headerSub}>{fichas.length} ficha(s)</Text>
+        <View style={s.header}>
+          <TouchableOpacity
+            style={s.backBtn}
+            onPress={() => router.back()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <View style={s.headerText}>
+            <Text style={s.headerTitle} numberOfLines={1}>{decodeURIComponent(projectName)}</Text>
+            <Text style={s.headerSub}>{fichas.length} ficha{fichas.length !== 1 ? 's' : ''}</Text>
+          </View>
         </View>
       ) : null}
 
       <FlatList
         data={fichas}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1565C0" />
+        }
+        contentContainerStyle={s.list}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
+          <FichaCard
+            item={item}
             onPress={() => router.push(`/(tabs)/fichas/${item.id}`)}
-          >
-            <View style={styles.row}>
-              <Text style={styles.code}>{item.code}</Text>
-              <View style={[styles.badge, { backgroundColor: STATUS_COLOR[item.status] + '22' }]}>
-                <Text style={[styles.badgeText, { color: STATUS_COLOR[item.status] }]}>
-                  {STATUS_LABEL[item.status]}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.type}>Ficha {TYPE_LABEL[item.type] ?? item.type}</Text>
-            <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString('es-DO')}</Text>
-            {item.photos?.length > 0 && (
-              <Text style={styles.photos}>📷 {item.photos.length} foto(s)</Text>
-            )}
-          </TouchableOpacity>
+          />
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No hay fichas para este proyecto</Text>
+          <View style={s.empty}>
+            <Ionicons name="document-text-outline" size={52} color="#CBD5E1" />
+            <Text style={s.emptyTitle}>Sin fichas</Text>
+            <Text style={s.emptySub}>Crea la primera ficha para este proyecto</Text>
           </View>
         }
       />
 
       <TouchableOpacity
-        style={styles.fab}
+        style={s.fab}
         onPress={() => router.push(`/(tabs)/fichas/nueva?projectId=${projectId ?? ''}`)}
+        activeOpacity={0.85}
       >
-        <Text style={styles.fabText}>+ Nueva Ficha</Text>
+        <Ionicons name="add" size={22} color="#fff" />
+        <Text style={s.fabText}>Nueva Ficha</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { padding: 16, backgroundColor: '#1565C0' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 13, color: '#BBDEFB', marginTop: 2 },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F0F4F8' },
+  center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  header:      { backgroundColor: '#1565C0', paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backBtn:     { padding: 4 },
+  headerText:  { flex: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  headerSub:   { fontSize: 12, color: '#BBDEFB', marginTop: 2 },
+
   list: { padding: 16, gap: 12, paddingBottom: 100 },
+
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
+    borderLeftWidth: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  code: { fontSize: 13, fontWeight: '700', color: '#555' },
-  badge: { borderRadius: 4, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  type: { fontSize: 16, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
-  date: { fontSize: 12, color: '#999' },
-  photos: { fontSize: 12, color: '#666', marginTop: 4 },
-  empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 16, color: '#888' },
+  cardTop:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  typeChip:    { flexDirection: 'row', alignItems: 'center' },
+  typeText:    { fontSize: 13, fontWeight: '700', color: '#1565C0' },
+  statusBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  statusText:  { fontSize: 11, fontWeight: '700' },
+  code:        { fontSize: 14, fontWeight: '700', color: '#0D1B2A', marginBottom: 10 },
+  cardBottom:  { flexDirection: 'row', gap: 16 },
+  metaRow:     { flexDirection: 'row', alignItems: 'center' },
+  metaText:    { fontSize: 12, color: '#94A3B8' },
+
+  empty:      { alignItems: 'center', marginTop: 80, gap: 8 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#94A3B8', marginTop: 8 },
+  emptySub:   { fontSize: 14, color: '#CBD5E1', textAlign: 'center', paddingHorizontal: 32 },
+
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 24,
     left: 24,
+    height: 52,
     backgroundColor: '#1565C0',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
     shadowColor: '#1565C0',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   fabText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
