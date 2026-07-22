@@ -5,7 +5,9 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stpsoluciones.co
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  // 60s: las subidas multipart de fotos desde el campo (redes móviles lentas)
+  // superan con frecuencia los 15s originales y fallaban por timeout.
+  timeout: 60000,
 });
 
 api.interceptors.request.use(async (config) => {

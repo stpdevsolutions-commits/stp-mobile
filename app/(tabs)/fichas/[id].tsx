@@ -8,7 +8,10 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as ImagePicker from 'expo-image-picker';
 import { api, Ficha } from '../../../lib/api';
+import { getCachedPhotoUri, getPhotoDataUri } from '../../../lib/image-cache';
 import Svg, { Path } from 'react-native-svg';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stpsoluciones.com';
 
 const STATUS_LABEL: Record<string, string> = { borrador: 'Borrador', en_progreso: 'En progreso', enviada: 'Enviada' };
 const STATUS_COLOR: Record<string, string> = { borrador: '#FF9800', en_progreso: '#2196F3', enviada: '#4CAF50' };
@@ -51,12 +54,15 @@ export default function FichaDetailScreen() {
     setUploading(true);
     try {
       const uri = result.assets[0].uri;
+      if (!ficha?.projectId) { Alert.alert('Error', 'Ficha sin proyecto asociado'); return; }
       const formData = new FormData();
       formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
-      const { data: uploaded } = await api.post<{ url: string }>('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const newPhotos = [...(ficha?.photos ?? []), uploaded.url];
+      const { data: uploaded } = await api.post<{ id: string; url: string }>(
+        `/files/fichas-photo?projectId=${ficha.projectId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      const newPhotos = [...(ficha?.photos ?? []), `${API_URL}${uploaded.url}`];
       await api.patch(`/fichas/${id}`, { photos: newPhotos });
       void load();
     } catch {
@@ -92,7 +98,10 @@ export default function FichaDetailScreen() {
     setDownloadingPdf(true);
     try {
       const { data: html } = await api.get<string>(`/fichas/${id}/pdf`);
-      const { uri } = await Print.printToFileAsync({ html });
+      // Las fotos del HTML apuntan a /files/{id}/download (requieren token) y
+      // expo-print no envía Authorization. Las embebemos como data URI base64.
+      const embeddedHtml = await embedPhotosInHtml(html, ficha?.photos ?? []);
+      const { uri } = await Print.printToFileAsync({ html: embeddedHtml });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, {
@@ -156,7 +165,7 @@ export default function FichaDetailScreen() {
       {/* Photos */}
       <Section title="Fotos">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-          {ficha.photos?.map((url, i) => <Image key={i} source={{ uri: url }} style={s.photo} />)}
+          {ficha.photos?.map((url, i) => <CachedImage key={i} url={url} style={s.photo} />)}
         </ScrollView>
         {canEdit && (
           <TouchableOpacity style={s.addPhotoBtn} onPress={confirmAddPhoto} disabled={uploading}>
@@ -175,6 +184,49 @@ export default function FichaDetailScreen() {
       )}
     </ScrollView>
   );
+}
+
+/**
+ * Reemplaza en el HTML del PDF cada URL remota de foto por su data URI base64,
+ * para que las imágenes aparezcan embebidas (expo-print no envía el token).
+ */
+async function embedPhotosInHtml(html: string, photos: string[]): Promise<string> {
+  let out = html;
+  for (const url of photos) {
+    try {
+      const dataUri = await getPhotoDataUri(url);
+      if (dataUri) out = out.split(url).join(dataUri);
+    } catch {
+      // Si una foto falla, se deja la URL original (se verá rota en el PDF).
+    }
+  }
+  return out;
+}
+
+/** <Image> que carga la foto remota autenticada desde la caché local. */
+function CachedImage({ url, style }: { url: string; style: object }) {
+  const [uri, setUri] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setUri(null);
+    setFailed(false);
+    void getCachedPhotoUri(url).then((local) => {
+      if (!active) return;
+      if (local) setUri(local);
+      else setFailed(true);
+    });
+    return () => { active = false; };
+  }, [url]);
+
+  if (failed) {
+    return <View style={[style, s.photoPlaceholder]}><Text style={s.photoPlaceholderText}>🖼️</Text></View>;
+  }
+  if (!uri) {
+    return <View style={[style, s.photoPlaceholder]}><ActivityIndicator color="#1565C0" /></View>;
+  }
+  return <Image source={{ uri }} style={style} />;
 }
 
 function DataSections({ data, type }: { data: Record<string, unknown>; type: string }) {
@@ -293,6 +345,8 @@ const s = StyleSheet.create({
   obs: { fontSize: 14, color: '#334155', lineHeight: 22 },
   sigBox: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 8, alignSelf: 'flex-start', backgroundColor: '#F8FAFC' },
   photo: { width: 120, height: 90, borderRadius: 10, marginRight: 8 },
+  photoPlaceholder: { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  photoPlaceholderText: { fontSize: 28 },
   addPhotoBtn: { borderWidth: 1.5, borderColor: '#1565C0', borderStyle: 'dashed', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
   addPhotoBtnText: { color: '#1565C0', fontWeight: '700' },
   actions: { margin: 12 },

@@ -169,7 +169,14 @@ export default function NuevaFichaScreen() {
 
     setSaving(true);
     try {
-      const fichaData = { ...(data as unknown as Record<string, unknown>), observacionesGenerales: observaciones };
+      // No pisar las observaciones que el propio formulario ya haya capturado
+      // (p.ej. Evaluación de daños tiene su campo observacionesGenerales) con
+      // el estado del paso resumen si este está vacío.
+      const dataRecord = data as unknown as Record<string, unknown>;
+      const fichaData = {
+        ...dataRecord,
+        observacionesGenerales: observaciones || (dataRecord.observacionesGenerales as string | undefined) || '',
+      };
 
       if (isOnline) {
         const photoUrls = photos.length > 0 ? await uploadPhotos(photos) : [];

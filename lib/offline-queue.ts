@@ -67,7 +67,24 @@ async function uploadLocalPhotos(uris: string[], projectId: string): Promise<str
   return results;
 }
 
+// Lock a nivel de MÓDULO: garantiza que solo una sincronización corra a la vez
+// aunque el hook useNetworkStatus esté montado en varias pantallas y cada una
+// dispare runSync (evita fichas duplicadas por read-modify-write concurrente).
+let syncing = false;
+
 export async function syncQueue(
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ synced: number; failed: number }> {
+  if (syncing) return { synced: 0, failed: 0 };
+  syncing = true;
+  try {
+    return await runSync(onProgress);
+  } finally {
+    syncing = false;
+  }
+}
+
+async function runSync(
   onProgress?: (done: number, total: number) => void,
 ): Promise<{ synced: number; failed: number }> {
   const queue = await getQueue();
