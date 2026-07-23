@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import * as SecureStore from 'expo-secure-store';
+import { getAccessToken, refreshAccessToken } from './api';
 
 /**
  * Cache de fotos de fichas.
@@ -41,7 +41,7 @@ function cacheKey(url: string): string {
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await SecureStore.getItemAsync('access_token');
+  const token = await getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -69,7 +69,19 @@ export async function getCachedPhotoUri(remoteUrl: string): Promise<string | nul
       if (info.exists && info.size > 0) return localUri;
 
       const headers = await authHeaders();
-      const res = await FileSystem.downloadAsync(remoteUrl, localUri, { headers });
+      let res = await FileSystem.downloadAsync(remoteUrl, localUri, { headers });
+
+      // FileSystem.downloadAsync no pasa por el interceptor de axios: si el
+      // access token expiró (401), renovamos con el refresh token (mismo mutex
+      // que lib/api.ts) y reintentamos la descarga una vez.
+      if (res.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          res = await FileSystem.downloadAsync(remoteUrl, localUri, {
+            headers: { Authorization: `Bearer ${newToken}` },
+          });
+        }
+      }
       if (res.status >= 200 && res.status < 300) return localUri;
 
       await FileSystem.deleteAsync(localUri, { idempotent: true });

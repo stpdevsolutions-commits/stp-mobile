@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { getProfile, login as apiLogin, loginWithGoogle as apiLoginWithGoogle, logout as apiLogout, User } from './api';
+import { getProfile, login as apiLogin, loginWithGoogle as apiLoginWithGoogle, logout as apiLogout, onSessionExpired, User } from './api';
 
 interface AuthState {
   user: User | null;
@@ -23,19 +23,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Si el refresh automático falla (sesión realmente vencida/revocada),
+    // lib/api.ts avisa aquí: soltar el user hace que RootGuard mande al login.
+    onSessionExpired(() => setUser(null));
+
     void (async () => {
       try {
         const token = await SecureStore.getItemAsync('access_token');
         if (token) {
+          // Si el access token expiró, el interceptor de api.ts intenta el
+          // refresh automáticamente antes de rendirse.
           const profile = await getProfile();
           setUser(profile);
         }
       } catch {
         await SecureStore.deleteItemAsync('access_token');
+        await SecureStore.deleteItemAsync('refresh_token');
       } finally {
         setLoading(false);
       }
     })();
+
+    return () => onSessionExpired(null);
   }, []);
 
   async function login(email: string, password: string) {
