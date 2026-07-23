@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Image, TouchableOpacity, Text, Alert, StyleSheet, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { compressPhoto } from '../../lib/photo-compress';
 
 interface Props {
   photos: string[];
@@ -25,7 +26,11 @@ export default function PhotoPicker({ photos, onChange, maxPhotos = 10 }: Props)
       ? await ImagePicker.launchCameraAsync({ quality: 0.85 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsMultipleSelection: true });
     if (result.canceled) return;
-    const uris = result.assets.map((a) => a.uri);
+    // Comprimir aquí (en la captura) para que tanto la subida online como la
+    // cola offline manejen ya la versión ligera (~1920px, JPEG 0.7).
+    const uris = await Promise.all(
+      result.assets.map((a) => compressPhoto(a.uri, a.width, a.height)),
+    );
     onChange([...photos, ...uris].slice(0, maxPhotos));
   }
 

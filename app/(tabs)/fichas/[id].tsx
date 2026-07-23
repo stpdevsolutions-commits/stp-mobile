@@ -9,6 +9,7 @@ import * as Print from 'expo-print';
 import * as ImagePicker from 'expo-image-picker';
 import { api, Ficha } from '../../../lib/api';
 import { getCachedPhotoUri, getPhotoDataUri } from '../../../lib/image-cache';
+import { compressPhoto } from '../../../lib/photo-compress';
 import Svg, { Path } from 'react-native-svg';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stpsoluciones.com';
@@ -53,7 +54,9 @@ export default function FichaDetailScreen() {
 
     setUploading(true);
     try {
-      const uri = result.assets[0].uri;
+      const asset = result.assets[0];
+      // Comprimir antes de subir: ~1920px lado mayor, JPEG 0.7.
+      const uri = await compressPhoto(asset.uri, asset.width, asset.height);
       if (!ficha?.projectId) { Alert.alert('Error', 'Ficha sin proyecto asociado'); return; }
       const formData = new FormData();
       formData.append('file', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
