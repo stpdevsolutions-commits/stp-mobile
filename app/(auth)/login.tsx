@@ -1,25 +1,73 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated, Image, KeyboardAvoidingView, Platform,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
   ActivityIndicator, Alert,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useAuth } from '../../lib/auth-context';
+
+// Necesario para que la pestaña del navegador de autenticación se cierre sola
+// al volver de Google — sin esto queda "colgada" tras completar el login.
+WebBrowser.maybeCompleteAuthSession();
 
 function isNetworkError(err: unknown): boolean {
   const e = err as { response?: unknown; code?: string; message?: string };
   return !e.response || e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED';
 }
 
+function serverErrorMessage(err: unknown, fallback: string): string {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  const serverMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  if (isNetworkError(err)) {
+    return 'No se pudo conectar al servidor.\n\nVerifica que estás en la red Wi-Fi de STP o que el VPN está activo.';
+  }
+  if (serverMsg) return serverMsg;
+  if (status === 401) return fallback;
+  return `Error del servidor (${status ?? 'desconocido'}). Contacta al administrador.`;
+}
+
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const btnScale = useRef(new Animated.Value(1)).current;
+
+  // Client IDs del mismo proyecto de Google Cloud que usa el ERP web
+  // (861368211735). El Android client ya tiene su intent-filter de retorno
+  // configurado en app.json — no hace falta redirectUri manual.
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const accessToken = response.authentication?.accessToken;
+      if (accessToken) void handleGoogleToken(accessToken);
+    } else if (response?.type === 'error') {
+      Alert.alert('No se pudo iniciar sesión con Google', response.error?.message ?? 'Intenta de nuevo.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response]);
+
+  async function handleGoogleToken(accessToken: string) {
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle(accessToken);
+    } catch (err: unknown) {
+      Alert.alert('No se pudo iniciar sesión', serverErrorMessage(err, 'Tu cuenta de Google no está autorizada para acceder al sistema.'));
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -30,19 +78,7 @@ export default function LoginScreen() {
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-
-      let msg: string;
-      if (isNetworkError(err)) {
-        msg = 'No se pudo conectar al servidor.\n\nVerifica que estás en la red Wi-Fi de STP o que el VPN está activo.';
-      } else if (status === 401) {
-        msg = 'Correo o contraseña incorrectos.';
-      } else if (status === 429) {
-        msg = 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
-      } else {
-        msg = `Error del servidor (${status ?? 'desconocido'}). Contacta al administrador.`;
-      }
-      Alert.alert('No se pudo iniciar sesión', msg);
+      Alert.alert('No se pudo iniciar sesión', serverErrorMessage(err, 'Correo o contraseña incorrectos.'));
     } finally {
       setLoading(false);
     }
@@ -52,6 +88,8 @@ export default function LoginScreen() {
     Animated.spring(btnScale, { toValue: 0.97, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
   const pressOut = () =>
     Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+
+  const anyLoading = loading || googleLoading;
 
   return (
     <KeyboardAvoidingView
@@ -77,7 +115,7 @@ export default function LoginScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
-          editable={!loading}
+          editable={!anyLoading}
         />
 
         <View style={[s.passRow, passwordFocused && s.inputActive]}>
@@ -90,7 +128,7 @@ export default function LoginScreen() {
             onFocus={() => setPasswordFocused(true)}
             onBlur={() => setPasswordFocused(false)}
             secureTextEntry={!showPassword}
-            editable={!loading}
+            editable={!anyLoading}
             onSubmitEditing={handleLogin}
           />
           <TouchableOpacity
@@ -104,11 +142,11 @@ export default function LoginScreen() {
 
         <Animated.View style={[s.btnWrapper, { transform: [{ scale: btnScale }] }]}>
           <TouchableOpacity
-            style={[s.btn, loading && s.btnDisabled]}
+            style={[s.btn, anyLoading && s.btnDisabled]}
             onPress={handleLogin}
             onPressIn={pressIn}
             onPressOut={pressOut}
-            disabled={loading}
+            disabled={anyLoading}
             activeOpacity={1}
           >
             {loading
@@ -116,6 +154,30 @@ export default function LoginScreen() {
               : <Text style={s.btnText}>Iniciar sesión</Text>}
           </TouchableOpacity>
         </Animated.View>
+
+        <View style={s.divider}>
+          <View style={s.dividerLine} />
+          <Text style={s.dividerText}>o</Text>
+          <View style={s.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={[s.googleBtn, anyLoading && s.btnDisabled]}
+          onPress={() => promptAsync()}
+          disabled={anyLoading || !request}
+          activeOpacity={0.85}
+        >
+          {googleLoading ? (
+            <ActivityIndicator color="#1565C0" />
+          ) : (
+            <>
+              <View style={s.googleBadge}>
+                <Text style={s.googleBadgeText}>G</Text>
+              </View>
+              <Text style={s.googleBtnText}>Continuar con Google</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -184,4 +246,29 @@ const s = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  divider: { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 20, marginBottom: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  dividerText: { marginHorizontal: 10, fontSize: 12, color: '#94A3B8', fontWeight: '600' },
+  googleBtn: {
+    width: '100%',
+    height: 50,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  googleBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1565C0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  googleBadgeText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  googleBtnText: { color: '#334155', fontSize: 15, fontWeight: '700' },
 });
