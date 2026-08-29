@@ -12,6 +12,14 @@ import { useAuth } from '../../lib/auth-context';
 // al volver de Google — sin esto queda "colgada" tras completar el login.
 WebBrowser.maybeCompleteAuthSession();
 
+// expo-auth-session usa por defecto `<packageName>:/oauthredirect` como
+// redirect nativo, pero el intent-filter registrado en app.json (de una
+// configuración anterior) espera el esquema invertido del client ID de
+// Android — Google rechaza cualquier otro con "Error 400: invalid_request".
+// Se fuerza aquí para que coincida con lo ya registrado.
+const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+const GOOGLE_NATIVE_REDIRECT_URI = `com.googleusercontent.apps.${ANDROID_CLIENT_ID.replace(/\.apps\.googleusercontent\.com$/, '')}:/oauthredirect`;
+
 function isNetworkError(err: unknown): boolean {
   const e = err as { response?: unknown; code?: string; message?: string };
   return !e.response || e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED';
@@ -41,12 +49,15 @@ export default function LoginScreen() {
 
   // Client IDs del mismo proyecto de Google Cloud que usa el ERP web
   // (861368211735). El Android client ya tiene su intent-filter de retorno
-  // configurado en app.json — no hace falta redirectUri manual.
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    scopes: ['openid', 'profile', 'email'],
-  });
+  // configurado en app.json (ver GOOGLE_NATIVE_REDIRECT_URI arriba).
+  const [request, response, promptAsync] = Google.useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+      androidClientId: ANDROID_CLIENT_ID,
+      scopes: ['openid', 'profile', 'email'],
+    },
+    { native: GOOGLE_NATIVE_REDIRECT_URI },
+  );
 
   useEffect(() => {
     if (response?.type === 'success') {
