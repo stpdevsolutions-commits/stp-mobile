@@ -191,7 +191,7 @@ export interface Project {
 }
 
 export type FichaStatus = 'borrador' | 'en_progreso' | 'enviada';
-export type FichaType = 'electrico' | 'civil' | 'electromecanico' | 'levantamiento' | 'evaluacion_danos';
+export type FichaType = 'electrico' | 'civil' | 'electromecanico' | 'levantamiento' | 'evaluacion_danos' | 'domotica';
 
 export interface Ficha {
   id: string;

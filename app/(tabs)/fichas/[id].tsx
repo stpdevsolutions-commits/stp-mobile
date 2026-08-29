@@ -18,7 +18,7 @@ const STATUS_LABEL: Record<string, string> = { borrador: 'Borrador', en_progreso
 const STATUS_COLOR: Record<string, string> = { borrador: '#FF9800', en_progreso: '#2196F3', enviada: '#4CAF50' };
 const TYPE_LABEL: Record<string, string> = {
   electrico: 'Eléctrica', civil: 'Civil', electromecanico: 'Electromecánica',
-  levantamiento: 'Levantamiento', evaluacion_danos: 'Evaluación de daños',
+  levantamiento: 'Levantamiento', domotica: 'Domótica', evaluacion_danos: 'Evaluación de daños',
 };
 
 export default function FichaDetailScreen() {
@@ -338,6 +338,8 @@ function formatKey(key: string): string {
     tipoVentana: 'Tipo de ventana', alturaTechoM: 'Altura de techo (m)',
     materialPared: 'Material de pared', senalWifi: 'Señal WiFi',
     precioUnitarioRD: 'Precio unitario (RD$)',
+    puntosElectricos: 'Puntos eléctricos', categoria: 'Categoría',
+    materialId: 'ID material (ERP)', codigo: 'Código (ERP)',
   };
   return map[key] ?? key.replace(/([A-Z])/g, ' $1').toLowerCase();
 }

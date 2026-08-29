@@ -7,52 +7,39 @@ export interface ItemLevantamiento {
   observaciones?: string;
 }
 
-export type SenalWifi = 'excelente' | 'buena' | 'debil' | 'sin_senal';
+/** Puntos eléctricos a instalar/verificar: cajitas, tomacorrientes, interruptores, luminarias. */
+export type CategoriaPuntoElectrico = 'cajita' | 'tomacorriente' | 'interruptor' | 'luminaria';
 
-export const DISPOSITIVOS_DOMOTICA = [
-  'camara',
-  'sensor_movimiento',
-  'sensor_puerta_ventana',
-  'cerradura_inteligente',
-  'switch_inteligente',
-  'foco_inteligente',
-  'sirena',
-  'panel_control',
-  'medidor_energia',
-  'otro',
-] as const;
-export type DispositivoDomotica = (typeof DISPOSITIVOS_DOMOTICA)[number];
+export const CATEGORIA_PUNTO_LABEL: Record<CategoriaPuntoElectrico, string> = {
+  cajita: 'Cajita',
+  tomacorriente: 'Tomacorriente',
+  interruptor: 'Interruptor',
+  luminaria: 'Luminaria',
+};
 
-export interface ConectividadLevantamiento {
-  proveedorInternet?: string;
-  tipoConexion?: 'fibra' | 'cable' | 'dsl' | 'satelital' | 'otro';
-  velocidadMbps?: number;
-  ubicacionRouter?: string;
-  requiereRepetidor?: boolean;
+export const TIPOS_POR_CATEGORIA: Record<CategoriaPuntoElectrico, string[]> = {
+  cajita: ['Rectangular (1 dispositivo)', 'Cuadrada (2 dispositivos)', 'Octagonal (techo)', 'Otro'],
+  tomacorriente: ['Normal 110V', 'GFCI (baño/cocina/exterior)', 'USB', '220V', 'Otro'],
+  interruptor: ['Sencillo', 'Doble', 'Triple', 'Tres vías (conmutable)', 'Dimmer', 'Otro'],
+  luminaria: ['Plafón', 'Spot/ojo de buey', 'Tira LED', 'Lámpara colgante', 'Reflector', 'Otro'],
+};
+
+export interface PuntoElectrico {
+  categoria: CategoriaPuntoElectrico;
+  tipo: string;
+  cantidad: number;
+  ubicacion?: string;
   observaciones?: string;
 }
 
-export interface ElectricoLevantamiento {
-  capacidadPanelA?: number;
-  breakersLibres?: number;
-  tieneNeutroInterruptores?: 'si' | 'no' | 'revisar';
-  tomasCercaDePuntos?: boolean;
-  observaciones?: string;
-}
-
-export interface AmbienteLevantamiento {
-  nombre: string;
-  dispositivos: DispositivoDomotica[];
-  tipoPuerta?: string;
-  tipoVentana?: string;
-  alturaTechoM?: number;
-  materialPared?: string;
-  senalWifi?: SenalWifi;
-  observaciones?: string;
-}
-
-export interface EquipoCotizacion {
+/** Material tomado del catálogo del ERP (o cargado manualmente si no está en el catálogo). */
+export interface MaterialSeleccionado {
+  /** id del Material en el ERP; ausente si se cargó manualmente. */
+  materialId?: string;
+  /** código del ERP (p. ej. MAT-00001), solo informativo. */
+  codigo?: string;
   descripcion: string;
+  unidad?: string;
   cantidad: number;
   precioUnitarioRD?: number;
 }
@@ -61,12 +48,8 @@ export interface FichaLevantamientoData {
   proposito: 'presupuesto' | 'inventario' | 'diagnostico' | 'otro';
   items: ItemLevantamiento[];
   /** Opcional: fichas creadas antes de este cambio no la traen. */
-  conectividad?: ConectividadLevantamiento;
+  puntosElectricos?: PuntoElectrico[];
   /** Opcional: fichas creadas antes de este cambio no la traen. */
-  electrico?: ElectricoLevantamiento;
-  /** Opcional: fichas creadas antes de este cambio no la traen. */
-  ambientes?: AmbienteLevantamiento[];
-  /** Opcional: fichas creadas antes de este cambio no la traen. */
-  equiposCotizacion?: EquipoCotizacion[];
+  materiales?: MaterialSeleccionado[];
   observacionesGenerales?: string;
 }

@@ -1,44 +1,31 @@
 import React from 'react';
 import {
-  FichaLevantamientoData, ItemLevantamiento, AmbienteLevantamiento, EquipoCotizacion,
-  DispositivoDomotica, DISPOSITIVOS_DOMOTICA,
+  FichaLevantamientoData, ItemLevantamiento, PuntoElectrico, MaterialSeleccionado,
+  CategoriaPuntoElectrico, CATEGORIA_PUNTO_LABEL, TIPOS_POR_CATEGORIA,
 } from '../../lib/types/ficha-levantamiento.types';
-import { Label, Field, Hint, OptionGroup, MultiOptionGroup, ItemCard, AddButton, BooleanToggle, SectionContainer } from './FormPrimitives';
+import { Label, Field, OptionGroup, ItemCard, AddButton, SectionContainer } from './FormPrimitives';
+import MaterialPicker, { MaterialElegido } from './MaterialPicker';
 
-type Step = 'general' | 'conectividad' | 'electrico' | 'ambientes' | 'cotizacion' | 'items';
-export const LEVANTAMIENTO_STEPS: Step[] = ['general', 'conectividad', 'electrico', 'ambientes', 'cotizacion', 'items'];
+type Step = 'general' | 'puntos_electricos' | 'materiales' | 'items';
+export const LEVANTAMIENTO_STEPS: Step[] = ['general', 'puntos_electricos', 'materiales', 'items'];
 export const LEVANTAMIENTO_STEP_LABELS: Record<Step, string> = {
   general: 'Info general',
-  conectividad: 'Conectividad',
-  electrico: 'Eléctrico',
-  ambientes: 'Ambientes',
-  cotizacion: 'Cotización',
+  puntos_electricos: 'Puntos eléctricos',
+  materiales: 'Materiales',
   items: 'Inventario',
 };
 
-/** Etiquetas de dispositivo, compartidas con el PDF del backend (mantener en sincronía). */
-export const DISPOSITIVO_LABEL: Record<DispositivoDomotica, string> = {
-  camara: 'Cámara',
-  sensor_movimiento: 'Sensor de movimiento',
-  sensor_puerta_ventana: 'Sensor puerta/ventana',
-  cerradura_inteligente: 'Cerradura inteligente',
-  switch_inteligente: 'Switch inteligente',
-  foco_inteligente: 'Foco inteligente',
-  sirena: 'Sirena',
-  panel_control: 'Panel de control',
-  medidor_energia: 'Medidor de energía',
-  otro: 'Otro',
-};
-const DISPOSITIVO_OPTIONS = DISPOSITIVOS_DOMOTICA.map((v) => ({ label: DISPOSITIVO_LABEL[v], value: v }));
+const CATEGORIA_OPTIONS = (Object.keys(CATEGORIA_PUNTO_LABEL) as CategoriaPuntoElectrico[]).map((v) => ({
+  label: CATEGORIA_PUNTO_LABEL[v],
+  value: v,
+}));
 
 export function defaultLevantamientoData(): FichaLevantamientoData {
   return {
     proposito: 'presupuesto',
     items: [],
-    conectividad: {},
-    electrico: {},
-    ambientes: [],
-    equiposCotizacion: [],
+    puntosElectricos: [],
+    materiales: [],
   };
 }
 
@@ -46,10 +33,8 @@ interface Props { step: Step; data: FichaLevantamientoData; onChange: (d: FichaL
 
 export default function FichaLevantamientoForm({ step, data, onChange, gpsText }: Props) {
   // Fichas creadas antes de este cambio no traen estas secciones — se rellenan al vuelo.
-  const conectividad = data.conectividad ?? {};
-  const electrico = data.electrico ?? {};
-  const ambientes = data.ambientes ?? [];
-  const equiposCotizacion = data.equiposCotizacion ?? [];
+  const puntosElectricos = data.puntosElectricos ?? [];
+  const materiales = data.materiales ?? [];
 
   function upd(patch: Partial<FichaLevantamientoData>) { onChange({ ...data, ...patch }); }
 
@@ -60,24 +45,34 @@ export default function FichaLevantamientoForm({ step, data, onChange, gpsText }
   function updItem(i: number, p: Partial<ItemLevantamiento>) { const a = [...data.items]; a[i] = { ...a[i], ...p }; upd({ items: a }); }
   function remItem(i: number) { upd({ items: data.items.filter((_, idx) => idx !== i) }); }
 
-  function addAmbiente() {
-    const a: AmbienteLevantamiento = { nombre: '', dispositivos: [] };
-    upd({ ambientes: [...ambientes, a] });
+  function addPunto() {
+    const p: PuntoElectrico = { categoria: 'tomacorriente', tipo: TIPOS_POR_CATEGORIA.tomacorriente[0], cantidad: 1 };
+    upd({ puntosElectricos: [...puntosElectricos, p] });
   }
-  function updAmbiente(i: number, p: Partial<AmbienteLevantamiento>) { const a = [...ambientes]; a[i] = { ...a[i], ...p }; upd({ ambientes: a }); }
-  function remAmbiente(i: number) { upd({ ambientes: ambientes.filter((_, idx) => idx !== i) }); }
-  function toggleDispositivo(i: number, dispositivo: DispositivoDomotica) {
-    const actual = ambientes[i].dispositivos;
-    const next = actual.includes(dispositivo) ? actual.filter((d) => d !== dispositivo) : [...actual, dispositivo];
-    updAmbiente(i, { dispositivos: next });
+  function updPunto(i: number, p: Partial<PuntoElectrico>) { const a = [...puntosElectricos]; a[i] = { ...a[i], ...p }; upd({ puntosElectricos: a }); }
+  function remPunto(i: number) { upd({ puntosElectricos: puntosElectricos.filter((_, idx) => idx !== i) }); }
+  function cambiarCategoria(i: number, categoria: CategoriaPuntoElectrico) {
+    // Al cambiar de categoría, el tipo elegido deja de tener sentido — se resetea al primero de la nueva lista.
+    updPunto(i, { categoria, tipo: TIPOS_POR_CATEGORIA[categoria][0] });
   }
 
-  function addEquipo() {
-    const e: EquipoCotizacion = { descripcion: '', cantidad: 1 };
-    upd({ equiposCotizacion: [...equiposCotizacion, e] });
+  function addMaterialDesdeCatalogo(m: MaterialElegido) {
+    const nuevo: MaterialSeleccionado = {
+      materialId: m.materialId,
+      codigo: m.codigo,
+      descripcion: m.descripcion,
+      unidad: m.unidad,
+      cantidad: 1,
+      precioUnitarioRD: m.precioUnitarioRD,
+    };
+    upd({ materiales: [...materiales, nuevo] });
   }
-  function updEquipo(i: number, p: Partial<EquipoCotizacion>) { const a = [...equiposCotizacion]; a[i] = { ...a[i], ...p }; upd({ equiposCotizacion: a }); }
-  function remEquipo(i: number) { upd({ equiposCotizacion: equiposCotizacion.filter((_, idx) => idx !== i) }); }
+  function addMaterialManual() {
+    const nuevo: MaterialSeleccionado = { descripcion: '', cantidad: 1 };
+    upd({ materiales: [...materiales, nuevo] });
+  }
+  function updMaterial(i: number, p: Partial<MaterialSeleccionado>) { const a = [...materiales]; a[i] = { ...a[i], ...p }; upd({ materiales: a }); }
+  function remMaterial(i: number) { upd({ materiales: materiales.filter((_, idx) => idx !== i) }); }
 
   if (step === 'general') return (
     <SectionContainer>
@@ -88,63 +83,40 @@ export default function FichaLevantamientoForm({ step, data, onChange, gpsText }
     </SectionContainer>
   );
 
-  if (step === 'conectividad') return (
+  if (step === 'puntos_electricos') return (
     <SectionContainer>
-      <Field label="Proveedor de internet" value={conectividad.proveedorInternet ?? ''} onChange={(v) => upd({ conectividad: { ...conectividad, proveedorInternet: v } })} placeholder="Ej: Claro, Altice" />
-      <Label>Tipo de conexión</Label>
-      <OptionGroup options={[{ label: 'Fibra', value: 'fibra' }, { label: 'Cable', value: 'cable' }, { label: 'DSL', value: 'dsl' }, { label: 'Satelital', value: 'satelital' }, { label: 'Otro', value: 'otro' }]} selected={conectividad.tipoConexion ?? ''} onSelect={(v) => upd({ conectividad: { ...conectividad, tipoConexion: v as typeof conectividad.tipoConexion } })} />
-      <Field label="Velocidad contratada (Mbps)" value={conectividad.velocidadMbps ? String(conectividad.velocidadMbps) : ''} onChange={(v) => upd({ conectividad: { ...conectividad, velocidadMbps: parseFloat(v) || undefined } })} keyboardType="numeric" />
-      <Field label="Ubicación del router" value={conectividad.ubicacionRouter ?? ''} onChange={(v) => upd({ conectividad: { ...conectividad, ubicacionRouter: v } })} placeholder="Ej: Sala, closet de telecom" />
-      <BooleanToggle label="Requiere repetidor / access point adicional" value={conectividad.requiereRepetidor ?? false} onChange={(v) => upd({ conectividad: { ...conectividad, requiereRepetidor: v } })} />
-      <Field label="Observaciones de conectividad" value={conectividad.observaciones ?? ''} onChange={(v) => upd({ conectividad: { ...conectividad, observaciones: v } })} multiline />
-    </SectionContainer>
-  );
-
-  if (step === 'electrico') return (
-    <SectionContainer>
-      <Field label="Capacidad del panel principal (A)" value={electrico.capacidadPanelA ? String(electrico.capacidadPanelA) : ''} onChange={(v) => upd({ electrico: { ...electrico, capacidadPanelA: parseFloat(v) || undefined } })} keyboardType="numeric" placeholder="Ej: 100, 150, 200" />
-      <Field label="Breakers libres en el panel" value={electrico.breakersLibres != null ? String(electrico.breakersLibres) : ''} onChange={(v) => upd({ electrico: { ...electrico, breakersLibres: parseFloat(v) || undefined } })} keyboardType="numeric" />
-      <Label>¿Hay neutro en los interruptores de pared?</Label>
-      <OptionGroup options={[{ label: 'Sí', value: 'si' }, { label: 'No', value: 'no' }, { label: 'Revisar en sitio', value: 'revisar' }]} selected={electrico.tieneNeutroInterruptores ?? ''} onSelect={(v) => upd({ electrico: { ...electrico, tieneNeutroInterruptores: v as typeof electrico.tieneNeutroInterruptores } })} />
-      <Hint>Clave para instalar switches inteligentes de pared — sin neutro hacen falta módulos especiales.</Hint>
-      <BooleanToggle label="Hay tomas eléctricas cerca de los puntos a instalar" value={electrico.tomasCercaDePuntos ?? false} onChange={(v) => upd({ electrico: { ...electrico, tomasCercaDePuntos: v } })} />
-      <Field label="Observaciones eléctricas" value={electrico.observaciones ?? ''} onChange={(v) => upd({ electrico: { ...electrico, observaciones: v } })} multiline />
-    </SectionContainer>
-  );
-
-  if (step === 'ambientes') return (
-    <SectionContainer>
-      {ambientes.map((a, idx) => (
-        <ItemCard key={idx} title={`Ambiente: ${a.nombre || `#${idx + 1}`}`} onRemove={() => remAmbiente(idx)}>
-          <Field label="Nombre del ambiente" value={a.nombre} onChange={(v) => updAmbiente(idx, { nombre: v })} placeholder="Ej: Sala, Cocina, Habitación principal" />
-          <Label>Dispositivos planificados</Label>
-          <MultiOptionGroup options={DISPOSITIVO_OPTIONS} selected={a.dispositivos} onToggle={(v) => toggleDispositivo(idx, v as DispositivoDomotica)} />
-          <Field label="Tipo de puerta" value={a.tipoPuerta ?? ''} onChange={(v) => updAmbiente(idx, { tipoPuerta: v })} placeholder="Ej: Madera sólida, Vidrio" />
-          <Field label="Tipo de ventana" value={a.tipoVentana ?? ''} onChange={(v) => updAmbiente(idx, { tipoVentana: v })} placeholder="Ej: Corrediza, Abatible" />
-          <Field label="Altura de techo (m)" value={a.alturaTechoM ? String(a.alturaTechoM) : ''} onChange={(v) => updAmbiente(idx, { alturaTechoM: parseFloat(v) || undefined })} keyboardType="numeric" />
-          <Field label="Material de pared" value={a.materialPared ?? ''} onChange={(v) => updAmbiente(idx, { materialPared: v })} placeholder="Ej: Bloque, Concreto, Yeso" />
-          <Label>Señal WiFi en este ambiente</Label>
-          <OptionGroup options={[{ label: 'Excelente', value: 'excelente' }, { label: 'Buena', value: 'buena' }, { label: 'Débil', value: 'debil' }, { label: 'Sin señal', value: 'sin_senal' }]} selected={a.senalWifi ?? ''} onSelect={(v) => updAmbiente(idx, { senalWifi: v as typeof a.senalWifi })} />
-          <Field label="Observaciones" value={a.observaciones ?? ''} onChange={(v) => updAmbiente(idx, { observaciones: v })} multiline />
+      {puntosElectricos.map((p, idx) => (
+        <ItemCard key={idx} title={`${CATEGORIA_PUNTO_LABEL[p.categoria]} #${idx + 1}`} onRemove={() => remPunto(idx)}>
+          <Label>Categoría</Label>
+          <OptionGroup options={CATEGORIA_OPTIONS} selected={p.categoria} onSelect={(v) => cambiarCategoria(idx, v as CategoriaPuntoElectrico)} />
+          <Label>Tipo</Label>
+          <OptionGroup options={TIPOS_POR_CATEGORIA[p.categoria].map((t) => ({ label: t, value: t }))} selected={p.tipo} onSelect={(v) => updPunto(idx, { tipo: v })} />
+          <Field label="Cantidad" value={String(p.cantidad)} onChange={(v) => updPunto(idx, { cantidad: parseFloat(v) || 0 })} keyboardType="numeric" />
+          <Field label="Ubicación" value={p.ubicacion ?? ''} onChange={(v) => updPunto(idx, { ubicacion: v })} placeholder="Ej: Sala, Habitación 1, Cocina" />
+          <Field label="Observaciones" value={p.observaciones ?? ''} onChange={(v) => updPunto(idx, { observaciones: v })} multiline />
         </ItemCard>
       ))}
-      <AddButton label="+ Agregar ambiente" onPress={addAmbiente} />
+      <AddButton label="+ Agregar punto eléctrico" onPress={addPunto} />
     </SectionContainer>
   );
 
-  if (step === 'cotizacion') return (
+  if (step === 'materiales') return (
     <SectionContainer>
-      {equiposCotizacion.map((e, idx) => (
-        <ItemCard key={idx} title={`Equipo #${idx + 1}: ${e.descripcion || '—'}`} onRemove={() => remEquipo(idx)}>
-          <Field label="Descripción" value={e.descripcion} onChange={(v) => updEquipo(idx, { descripcion: v })} placeholder="Ej: Cámara exterior 2MP" />
-          <Field label="Cantidad" value={String(e.cantidad)} onChange={(v) => updEquipo(idx, { cantidad: parseFloat(v) || 0 })} keyboardType="numeric" />
-          <Field label="Precio unitario (RD$)" value={e.precioUnitarioRD != null ? String(e.precioUnitarioRD) : ''} onChange={(v) => updEquipo(idx, { precioUnitarioRD: parseFloat(v) || undefined })} keyboardType="numeric" />
+      <Label>Buscar en el catálogo del ERP</Label>
+      <MaterialPicker onSelect={addMaterialDesdeCatalogo} />
+
+      {materiales.map((m, idx) => (
+        <ItemCard key={idx} title={`${m.codigo ? `[${m.codigo}] ` : ''}${m.descripcion || `Material #${idx + 1}`}`} onRemove={() => remMaterial(idx)}>
+          <Field label="Descripción" value={m.descripcion} onChange={(v) => updMaterial(idx, { descripcion: v })} placeholder="Ej: Cable THHN #12" editable={!m.materialId} />
+          <Field label="Unidad" value={m.unidad ?? ''} onChange={(v) => updMaterial(idx, { unidad: v })} placeholder="Ej: metro, unidad" editable={!m.materialId} />
+          <Field label="Cantidad" value={String(m.cantidad)} onChange={(v) => updMaterial(idx, { cantidad: parseFloat(v) || 0 })} keyboardType="numeric" />
+          <Field label="Precio unitario (RD$)" value={m.precioUnitarioRD != null ? String(m.precioUnitarioRD) : ''} onChange={(v) => updMaterial(idx, { precioUnitarioRD: parseFloat(v) || undefined })} keyboardType="numeric" />
         </ItemCard>
       ))}
-      <AddButton label="+ Agregar equipo" onPress={addEquipo} />
-      {equiposCotizacion.length > 0 ? (
+      <AddButton label="+ Cargar material manual (no está en el catálogo)" onPress={addMaterialManual} />
+      {materiales.length > 0 ? (
         <Label>
-          Total estimado: RD$ {equiposCotizacion.reduce((sum, e) => sum + e.cantidad * (e.precioUnitarioRD ?? 0), 0).toLocaleString('es-DO')}
+          Total estimado: RD$ {materiales.reduce((sum, m) => sum + m.cantidad * (m.precioUnitarioRD ?? 0), 0).toLocaleString('es-DO')}
         </Label>
       ) : null}
     </SectionContainer>

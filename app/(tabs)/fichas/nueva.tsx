@@ -32,18 +32,24 @@ import FichaLevantamientoForm, {
 } from '../../../components/fichas/FichaLevantamientoForm';
 import { FichaLevantamientoData } from '../../../lib/types/ficha-levantamiento.types';
 
+import FichaDomoticaForm, {
+  DOMOTICA_STEPS, DOMOTICA_STEP_LABELS, defaultDomoticaData,
+} from '../../../components/fichas/FichaDomoticaForm';
+import { FichaDomoticaData } from '../../../lib/types/ficha-domotica.types';
+
 import FichaEvaluacionForm, {
   EVALUACION_STEPS, EVALUACION_STEP_LABELS, defaultEvaluacionData,
 } from '../../../components/fichas/FichaEvaluacionForm';
 import { FichaEvaluacionData } from '../../../lib/types/ficha-evaluacion.types';
 
-type AnyData = FichaElectricaData | FichaCivilData | FichaElectromecanicaData | FichaLevantamientoData | FichaEvaluacionData;
+type AnyData = FichaElectricaData | FichaCivilData | FichaElectromecanicaData | FichaLevantamientoData | FichaDomoticaData | FichaEvaluacionData;
 
 const TYPE_OPTIONS = [
   { label: '⚡ Eléctrico', value: 'electrico' },
   { label: '🏗️ Civil', value: 'civil' },
   { label: '⚙️ Electromecánico', value: 'electromecanico' },
   { label: '📦 Levantamiento', value: 'levantamiento' },
+  { label: '📡 Domótica', value: 'domotica' },
   { label: '🔍 Evaluación de daños', value: 'evaluacion_danos' },
 ];
 
@@ -53,6 +59,7 @@ function getSteps(type: FichaType): string[] {
     case 'civil': return CIVIL_STEPS;
     case 'electromecanico': return ELECTROMECANICA_STEPS;
     case 'levantamiento': return LEVANTAMIENTO_STEPS;
+    case 'domotica': return DOMOTICA_STEPS;
     case 'evaluacion_danos': return EVALUACION_STEPS;
   }
 }
@@ -63,6 +70,7 @@ function getStepLabel(type: FichaType, step: string): string {
     case 'civil': return CIVIL_STEP_LABELS[step as keyof typeof CIVIL_STEP_LABELS] ?? step;
     case 'electromecanico': return ELECTROMECANICA_STEP_LABELS[step as keyof typeof ELECTROMECANICA_STEP_LABELS] ?? step;
     case 'levantamiento': return LEVANTAMIENTO_STEP_LABELS[step as keyof typeof LEVANTAMIENTO_STEP_LABELS] ?? step;
+    case 'domotica': return DOMOTICA_STEP_LABELS[step as keyof typeof DOMOTICA_STEP_LABELS] ?? step;
     case 'evaluacion_danos': return EVALUACION_STEP_LABELS[step as keyof typeof EVALUACION_STEP_LABELS] ?? step;
   }
 }
@@ -73,6 +81,7 @@ function defaultData(type: FichaType): AnyData {
     case 'civil': return defaultCivilData();
     case 'electromecanico': return defaultElectromecanicaData();
     case 'levantamiento': return defaultLevantamientoData();
+    case 'domotica': return defaultDomoticaData();
     case 'evaluacion_danos': return defaultEvaluacionData();
   }
 }
@@ -149,6 +158,7 @@ export default function NuevaFichaScreen() {
     if (fichaType === 'civil' && !d.tipoTrabajo) return 'Selecciona el tipo de trabajo civil.';
     if (fichaType === 'electromecanico' && !d.tipoTrabajo) return 'Selecciona el tipo de trabajo.';
     if (fichaType === 'levantamiento' && !d.proposito) return 'Selecciona el propósito del levantamiento.';
+    if (fichaType === 'domotica' && !d.proposito) return 'Selecciona el propósito de la ficha.';
     if (fichaType === 'evaluacion_danos') {
       if (!d.causaDano) return 'Selecciona la causa del daño.';
       if (!d.urgencia) return 'Selecciona la urgencia de intervención.';
@@ -292,6 +302,14 @@ export default function NuevaFichaScreen() {
           <FichaLevantamientoForm
             step={currentStep as Parameters<typeof FichaLevantamientoForm>[0]['step']}
             data={data as FichaLevantamientoData}
+            onChange={setData}
+            gpsText={gpsText}
+          />
+        )}
+        {currentStep !== 'resumen' && fichaType === 'domotica' && data && (
+          <FichaDomoticaForm
+            step={currentStep as Parameters<typeof FichaDomoticaForm>[0]['step']}
+            data={data as FichaDomoticaData}
             onChange={setData}
             gpsText={gpsText}
           />
