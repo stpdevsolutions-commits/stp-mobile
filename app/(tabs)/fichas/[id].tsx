@@ -247,11 +247,19 @@ function DataSections({ data, type }: { data: Record<string, unknown>; type: str
                 <Text style={s.subLabel}>{formatKey(key)} ({(value as unknown[]).length})</Text>
                 {(value as Record<string, unknown>[]).map((item, i) => (
                   <View key={i} style={s.subCard}>
-                    {Object.entries(item).filter(([k]) => k !== 'id').map(([k, v]) => (
-                      typeof v !== 'object' && v !== undefined && v !== null && v !== ''
+                    {Object.entries(item).filter(([k]) => k !== 'id').map(([k, v]) => {
+                      // Un array dentro de cada ítem (ej. dispositivos por ambiente):
+                      // se listan como texto, no se filtran por ser "object".
+                      if (Array.isArray(v)) {
+                        return v.length ? <Row key={k} label={formatKey(k)} value={formatArrayValue(k, v)} /> : null;
+                      }
+                      if (typeof v === 'boolean') {
+                        return <Row key={k} label={formatKey(k)} value={v ? 'Sí' : 'No'} />;
+                      }
+                      return typeof v !== 'object' && v !== undefined && v !== null && v !== ''
                         ? <Row key={k} label={formatKey(k)} value={String(v)} />
-                        : null
-                    ))}
+                        : null;
+                    })}
                   </View>
                 ))}
               </View>
@@ -261,11 +269,12 @@ function DataSections({ data, type }: { data: Record<string, unknown>; type: str
             return (
               <View key={key}>
                 <Text style={s.subLabel}>{formatKey(key)}</Text>
-                {Object.entries(value as Record<string, unknown>).map(([k, v]) =>
-                  v !== undefined && v !== null && v !== ''
+                {Object.entries(value as Record<string, unknown>).map(([k, v]) => {
+                  if (typeof v === 'boolean') return <Row key={k} label={formatKey(k)} value={v ? 'Sí' : 'No'} />;
+                  return v !== undefined && v !== null && v !== ''
                     ? <Row key={k} label={formatKey(k)} value={String(v)} />
-                    : null
-                )}
+                    : null;
+                })}
               </View>
             );
           }
@@ -289,6 +298,20 @@ function DataSections({ data, type }: { data: Record<string, unknown>; type: str
   );
 }
 
+const DISPOSITIVO_LABEL: Record<string, string> = {
+  camara: 'Cámara', sensor_movimiento: 'Sensor de movimiento',
+  sensor_puerta_ventana: 'Sensor puerta/ventana', cerradura_inteligente: 'Cerradura inteligente',
+  switch_inteligente: 'Switch inteligente', foco_inteligente: 'Foco inteligente',
+  sirena: 'Sirena', panel_control: 'Panel de control', medidor_energia: 'Medidor de energía',
+  otro: 'Otro',
+};
+
+/** Texto de un array anidado dentro de un ítem (ej. dispositivos de un ambiente). */
+function formatArrayValue(key: string, arr: unknown[]): string {
+  if (key === 'dispositivos') return arr.map((v) => DISPOSITIVO_LABEL[String(v)] ?? String(v)).join(', ');
+  return arr.map(String).join(', ');
+}
+
 function formatKey(key: string): string {
   const map: Record<string, string> = {
     tipoTrabajo: 'Tipo de trabajo', voltajeServicio: 'Voltaje', fases: 'Fases',
@@ -305,6 +328,16 @@ function formatKey(key: string): string {
     estadoGeneral: 'Estado general', tipoFundacion: 'Tipo fundación', tipoColumnas: 'Tipo columnas',
     severidad: 'Severidad', accionRecomendada: 'Acción recomendada',
     ubicacion: 'Ubicación', descripcionDano: 'Descripción del daño',
+    conectividad: 'Conectividad', electrico: 'Eléctrico', ambientes: 'Ambientes',
+    equiposCotizacion: 'Cotización de equipos', dispositivos: 'Dispositivos planificados',
+    proveedorInternet: 'Proveedor de internet', tipoConexion: 'Tipo de conexión',
+    velocidadMbps: 'Velocidad (Mbps)', ubicacionRouter: 'Ubicación del router',
+    requiereRepetidor: 'Requiere repetidor/AP', capacidadPanelA: 'Capacidad del panel (A)',
+    breakersLibres: 'Breakers libres', tieneNeutroInterruptores: 'Neutro en interruptores',
+    tomasCercaDePuntos: 'Tomas cerca de los puntos', tipoPuerta: 'Tipo de puerta',
+    tipoVentana: 'Tipo de ventana', alturaTechoM: 'Altura de techo (m)',
+    materialPared: 'Material de pared', senalWifi: 'Señal WiFi',
+    precioUnitarioRD: 'Precio unitario (RD$)',
   };
   return map[key] ?? key.replace(/([A-Z])/g, ' $1').toLowerCase();
 }

@@ -1,9 +1,14 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export function Label({ children }: { children: React.ReactNode }) {
-  return <Text style={s.label}>{children}</Text>;
+export function Label({ children, style }: { children: React.ReactNode; style?: TextStyle }) {
+  return <Text style={[s.label, style]}>{children}</Text>;
+}
+
+/** Texto de ayuda chico, para una nota bajo un campo (no es un Label de sección). */
+export function Hint({ children }: { children: React.ReactNode }) {
+  return <Text style={s.hint}>{children}</Text>;
 }
 
 export function Field({
@@ -57,6 +62,35 @@ export function OptionGroup({
           </Text>
         </TouchableOpacity>
       ))}
+    </View>
+  );
+}
+
+/** Como OptionGroup, pero de selección múltiple (toca para activar/desactivar cada opción). */
+export function MultiOptionGroup({
+  options, selected, onToggle,
+}: {
+  options: { label: string; value: string }[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <View style={s.optionGroup}>
+      {options.map((o) => {
+        const active = selected.includes(o.value);
+        return (
+          <TouchableOpacity
+            key={o.value}
+            style={[s.option, active && s.optionSelected]}
+            onPress={() => onToggle(o.value)}
+            activeOpacity={0.75}
+          >
+            <Text style={[s.optionText, active && s.optionTextSelected]}>
+              {o.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -122,6 +156,13 @@ const s = StyleSheet.create({
     marginBottom: 5,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  hint: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 4,
+    marginBottom: 4,
+    lineHeight: 15,
   },
   input: {
     borderWidth: 1.5,
