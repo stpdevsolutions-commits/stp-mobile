@@ -41,3 +41,6 @@ yarn-error.*
 /ios
 /android
 *.apk
+
+# Config local de Claude Code (permisos/ajustes por usuario, no del proyecto)
+.claude/settings.local.json
