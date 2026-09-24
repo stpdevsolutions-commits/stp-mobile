@@ -28,7 +28,8 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-updates"
     ],
     "ios": {
       "supportsTablet": true,
@@ -50,7 +51,10 @@
               "path": "/oauthredirect"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -71,6 +75,14 @@
       "eas": {
         "projectId": "0e32fbd2-55cc-4aa4-a38a-e86909c0213e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0e32fbd2-55cc-4aa4-a38a-e86909c0213e",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

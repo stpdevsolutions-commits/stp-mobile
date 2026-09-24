@@ -51,6 +51,16 @@ export default function TabsLayout() {
         options={{ href: null, headerShown: false }}
       />
       <Tabs.Screen
+        name="calculadora"
+        options={{
+          headerShown: false,
+          tabBarLabel: 'Calculadora',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calculator-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="perfil"
         options={{
           title: 'Mi Perfil',

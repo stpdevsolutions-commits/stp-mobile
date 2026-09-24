@@ -1,7 +1,9 @@
 import React from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useAuth } from '../../lib/auth-context';
+import { versionLabel } from '../../components/UpdateBanner';
 
 function roleLabel(role?: string) {
   const map: Record<string, string> = { admin: 'Administrador', manager: 'Gerente', user: 'Técnico' };
@@ -64,7 +66,7 @@ export default function PerfilScreen() {
           resizeMode="contain"
         />
         <Text style={s.companyName}>Soluciones Técnicas Profesionales</Text>
-        <Text style={s.companyTag}>STP Tecnicos v1.0</Text>
+        <Text style={s.companyTag}>STP Tecnicos v{versionLabel(Constants.expoConfig?.version ?? '1.0.0')}</Text>
       </View>
 
       <TouchableOpacity style={s.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
