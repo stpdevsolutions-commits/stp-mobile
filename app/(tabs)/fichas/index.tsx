@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated, FlatList, RefreshControl, StyleSheet,
   Text, TouchableOpacity, View, ActivityIndicator, Alert,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api, Ficha } from '../../../lib/api';
+import { CalcGuardado, listCalcs, openCalcPdf, rd } from '../../../lib/calc-api';
 
 const STATUS_LABEL: Record<string, string> = {
   borrador:    'Borrador',
@@ -87,10 +88,65 @@ function FichaCard({ item, onPress }: { item: Ficha; onPress: () => void }) {
   );
 }
 
+/** Cálculos de materiales guardados en el proyecto (MOB-1), con su PDF. */
+function CalculosSection({ calcs, onNuevo }: { calcs: CalcGuardado[]; onNuevo: () => void }) {
+  const [abriendo, setAbriendo] = useState<string | null>(null);
+
+  async function abrir(c: CalcGuardado) {
+    setAbriendo(c.id);
+    try {
+      await openCalcPdf(c.id, c.title);
+    } catch {
+      Alert.alert('No se pudo abrir el PDF', 'Revisa la conexión o la VPN.');
+    } finally {
+      setAbriendo(null);
+    }
+  }
+
+  return (
+    <View style={s.calcBox}>
+      <View style={s.calcHead}>
+        <Ionicons name="calculator-outline" size={18} color="#1565C0" />
+        <Text style={s.calcTitle}>Cálculos de materiales</Text>
+        <TouchableOpacity onPress={onNuevo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={s.calcNuevo}>+ Nuevo</Text>
+        </TouchableOpacity>
+      </View>
+      {calcs.length === 0 ? (
+        <Text style={s.calcVacio}>Todavía no hay cálculos guardados en este proyecto.</Text>
+      ) : (
+        calcs.map((c) => (
+          <TouchableOpacity key={c.id} style={s.calcRow} onPress={() => abrir(c)} activeOpacity={0.7} disabled={!c.fileId}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.calcName}>{c.title}</Text>
+              <Text style={s.calcMeta}>
+                {new Date(c.createdAt).toLocaleDateString('es-DO')}
+                {c.createdBy ? ` · ${c.createdBy}` : ''}
+                {c.totalMaterials != null ? ` · ${rd(c.totalMaterials)}` : ''}
+              </Text>
+            </View>
+            {abriendo === c.id ? (
+              <ActivityIndicator size="small" color="#1565C0" />
+            ) : c.fileId ? (
+              <View style={s.pdfChip}>
+                <Ionicons name="document-text-outline" size={14} color="#1565C0" />
+                <Text style={s.pdfChipText}>PDF</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        ))
+      )}
+    </View>
+  );
+}
+
 export default function FichasScreen() {
-  const { projectId, projectName } = useLocalSearchParams<{ projectId: string; projectName: string }>();
+  const { projectId, projectCode, projectName } = useLocalSearchParams<{
+    projectId: string; projectCode?: string; projectName: string;
+  }>();
   const router = useRouter();
   const [fichas, setFichas] = useState<Ficha[]>([]);
+  const [calcs, setCalcs] = useState<CalcGuardado[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -99,6 +155,8 @@ export default function FichasScreen() {
       const params = projectId ? { projectId } : {};
       const { data } = await api.get<Ficha[]>('/fichas', { params });
       setFichas(data);
+      // Los cálculos no deben tumbar la pantalla de fichas si fallan.
+      if (projectId) setCalcs(await listCalcs(projectId).catch(() => []));
     } catch {
       Alert.alert('Error', 'No se pudieron cargar las fichas');
     } finally {
@@ -107,7 +165,8 @@ export default function FichasScreen() {
     }
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Al volver de la calculadora (o de una ficha) hay que ver lo recién guardado.
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
   const onRefresh = useCallback(() => { setRefreshing(true); void load(); }, [load]);
 
   if (loading) {
@@ -139,6 +198,18 @@ export default function FichasScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1565C0" />
         }
         contentContainerStyle={s.list}
+        ListHeaderComponent={
+          projectId ? (
+            <CalculosSection
+              calcs={calcs}
+              onNuevo={() =>
+                router.push(
+                  `/(tabs)/calculadora?projectId=${projectId}&projectCode=${encodeURIComponent(projectCode ?? '')}&projectName=${encodeURIComponent(projectName ? decodeURIComponent(projectName) : '')}`,
+                )
+              }
+            />
+          ) : null
+        }
         renderItem={({ item }) => (
           <FichaCard
             item={item}
@@ -198,6 +269,17 @@ const s = StyleSheet.create({
   cardBottom:  { flexDirection: 'row', gap: 16 },
   metaRow:     { flexDirection: 'row', alignItems: 'center' },
   metaText:    { fontSize: 12, color: '#94A3B8' },
+
+  calcBox:   { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#DBEAFE' },
+  calcHead:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  calcTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#0D1B2A' },
+  calcNuevo: { fontSize: 13, fontWeight: '800', color: '#1565C0' },
+  calcVacio: { fontSize: 12, color: '#94A3B8', paddingVertical: 4 },
+  calcRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 8 },
+  calcName:  { fontSize: 14, fontWeight: '700', color: '#0D1B2A' },
+  calcMeta:  { fontSize: 12, color: '#64748B', marginTop: 2 },
+  pdfChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  pdfChipText: { fontSize: 12, fontWeight: '800', color: '#1565C0' },
 
   empty:      { alignItems: 'center', marginTop: 80, gap: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#94A3B8', marginTop: 8 },

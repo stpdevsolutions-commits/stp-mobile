@@ -161,7 +161,7 @@ export default function ProjectsScreen() {
             item={item}
             onPress={() =>
               router.push(
-                `/(tabs)/fichas?projectId=${item.id}&projectName=${encodeURIComponent(item.name)}`,
+                `/(tabs)/fichas?projectId=${item.id}&projectCode=${encodeURIComponent(item.code)}&projectName=${encodeURIComponent(item.name)}`,
               )
             }
           />

@@ -1,11 +1,18 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CALCULADORAS } from '../../../lib/calc';
 
 export default function CalculadoraMenu() {
   const router = useRouter();
+  // Si se abrió desde un proyecto, cada calculadora lo trae ya enlazado.
+  const { projectId, projectCode, projectName } = useLocalSearchParams<{
+    projectId?: string; projectCode?: string; projectName?: string;
+  }>();
+  const query = projectId
+    ? `?projectId=${projectId}&projectCode=${encodeURIComponent(projectCode ?? '')}&projectName=${encodeURIComponent(projectName ?? '')}`
+    : '';
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -17,7 +24,7 @@ export default function CalculadoraMenu() {
           key={c.id}
           style={s.card}
           activeOpacity={0.75}
-          onPress={() => router.push(`/(tabs)/calculadora/${c.id}`)}
+          onPress={() => router.push(`/(tabs)/calculadora/${c.id}${query}`)}
         >
           <View style={s.icon}>
             <Ionicons name={c.icono as keyof typeof Ionicons.glyphMap} size={22} color="#1565C0" />

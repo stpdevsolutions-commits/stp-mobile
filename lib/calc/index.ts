@@ -23,6 +23,18 @@ export function getCalculadora(id: string): Calculadora | undefined {
  */
 export function totales(grupos: GrupoMateriales[]): LineaMaterial[] | null {
   if (grupos.length < 2) return null;
+  const lista = listaCompra(grupos);
+  const lineas = grupos.reduce((n, g) => n + g.lineas.length, 0);
+  return lista.length < lineas ? lista : null;
+}
+
+/**
+ * La lista de compra: todas las líneas sumadas por clave y unidad, aunque no
+ * se repita nada. Es la que se valora con los precios del catálogo. El
+ * servidor la vuelve a calcular igual al guardar (`consolidar()` en
+ * stp-api/src/material-calcs/material-calc-doc.ts).
+ */
+export function listaCompra(grupos: GrupoMateriales[]): LineaMaterial[] {
   type Acum = LineaMaterial & { veces: number; sumaExacta: number | null };
   const mapa = new Map<string, Acum>();
   for (const g of grupos) {
@@ -38,9 +50,7 @@ export function totales(grupos: GrupoMateriales[]): LineaMaterial[] | null {
       }
     }
   }
-  const lista = [...mapa.values()];
-  if (!lista.some((l) => l.veces > 1)) return null;
-  return lista.map(({ veces, sumaExacta, ...l }) =>
+  return [...mapa.values()].map(({ veces, sumaExacta, ...l }) =>
     veces > 1 && sumaExacta != null
       ? { ...l, cantidad: arriba(sumaExacta), exacto: sumaExacta, detalle: `${fmt(sumaExacta, 1)} exactas` }
       : l,
