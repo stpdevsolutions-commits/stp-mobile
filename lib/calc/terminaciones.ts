@@ -367,6 +367,8 @@ export const ceramica: Calculadora = {
     const desp = pct(v, 'desperdicio');
     const a = num(v, 'pieza_a');
     const b = num(v, 'pieza_b');
+    const aId = String(a).replace(/\./g, '_');
+    const bId = String(b).replace(/\./g, '_');
     const piezaM2 = (a * b) / 10000;
     const piezas = piezaM2 > 0 ? arriba((total * (1 + desp)) / piezaM2) : 0;
     const m2Caja = num(v, 'm2_caja');
@@ -394,11 +396,11 @@ export const ceramica: Calculadora = {
           titulo: 'Cerámica',
           lineas: [
             {
-              clave: `ceramica_${a}x${b}`, descripcion: `Cerámica ${fmt(a)} × ${fmt(b)} cm`, cantidad: piezas, unidad: 'piezas',
+              clave: `ceramica_${aId}x${bId}`, descripcion: `Cerámica ${fmt(a)} × ${fmt(b)} cm`, cantidad: piezas, unidad: 'piezas',
               detalle: `${fmt(total * (1 + desp))} m² con ${fmt(desp * 100)}%`,
             },
             ...(m2Caja > 0
-              ? [{ clave: `ceramica_${a}x${b}_caja`, descripcion: `Cajas de ${fmt(m2Caja)} m²`, cantidad: arriba((total * (1 + desp)) / m2Caja), unidad: 'cajas' }]
+              ? [{ clave: `ceramica_${aId}x${bId}_caja`, descripcion: `Cajas de ${fmt(m2Caja)} m²`, cantidad: arriba((total * (1 + desp)) / m2Caja), unidad: 'cajas' }]
               : []),
           ],
         },
