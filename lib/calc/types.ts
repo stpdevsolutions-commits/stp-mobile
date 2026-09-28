@@ -7,7 +7,14 @@
  * Todo es cálculo local: funciona sin conexión.
  */
 
-export type Valores = Record<string, string | boolean>;
+/** Un hueco (puerta, ventana, ducto) de un muro: ancho x alto x cantidad. */
+export interface Hueco {
+  ancho: number;
+  alto: number;
+  cantidad: number;
+}
+
+export type Valores = Record<string, string | boolean | Hueco[]>;
 
 interface CampoBase {
   clave: string;
@@ -27,6 +34,7 @@ export type Campo =
       alElegir?: (value: string) => Valores;
     })
   | (CampoBase & { tipo: 'toggle'; defecto: boolean })
+  | (CampoBase & { tipo: 'huecos' })
   | { tipo: 'seccion'; label: string; clave?: undefined; visibleSi?: (v: Valores) => boolean };
 
 /** Una línea de material del resultado. */

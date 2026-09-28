@@ -5,7 +5,7 @@ import {
   RUGOSA_FACTOR, SELLADOR_M2_GALON, TORNILLOS_ESTRUCTURA_PARAL, TORNILLOS_PLANCHA_M2,
 } from './constantes';
 import { Calculadora, GrupoMateriales, LineaManoObra, LineaMaterial, Valores } from './types';
-import { arriba, bool, fmt, manoObra, num, pct, r2, str } from './util';
+import { areaHuecos, arriba, bool, contarHuecos, fmt, manoObra, num, pct, r2, str } from './util';
 
 // ---------------------------------------------------------------------------
 // 4. Sheetrock / Densglass
@@ -33,8 +33,7 @@ export const sheetrock: Calculadora = {
     { tipo: 'seccion', label: 'Muro' },
     { tipo: 'numero', clave: 'largo', label: 'Largo del muro', unidad: 'm', defecto: 5 },
     { tipo: 'numero', clave: 'alto', label: 'Alto del muro', unidad: 'm', defecto: 2.6 },
-    { tipo: 'numero', clave: 'huecos', label: 'Área de huecos', unidad: 'm²', defecto: 0 },
-    { tipo: 'numero', clave: 'n_huecos', label: 'Cantidad de huecos (puertas, ventanas)', defecto: 0 },
+    { tipo: 'huecos', clave: 'huecos', label: 'Huecos (puertas, ventanas)' },
     {
       tipo: 'opcion', clave: 'caras', label: 'Caras', defecto: '2',
       opciones: [{ value: '1', label: '1 cara' }, { value: '2', label: '2 caras' }],
@@ -66,8 +65,8 @@ export const sheetrock: Calculadora = {
   calcular(v) {
     const largo = num(v, 'largo');
     const alto = num(v, 'alto');
-    const neta = Math.max(0, largo * alto - num(v, 'huecos'));
-    const nHuecos = Math.round(num(v, 'n_huecos'));
+    const neta = Math.max(0, largo * alto - areaHuecos(v, 'huecos'));
+    const nHuecos = contarHuecos(v, 'huecos');
     const caras = parseInt(str(v, 'caras'), 10) || 1;
     const desp = pct(v, 'desperdicio');
     const plancha = PLANCHAS[str(v, 'plancha')] ?? PLANCHAS['4x8'];
@@ -184,7 +183,7 @@ export const plafon: Calculadora = {
     { tipo: 'seccion', label: 'Área' },
     { tipo: 'numero', clave: 'largo', label: 'Largo del área', unidad: 'm', defecto: 5 },
     { tipo: 'numero', clave: 'ancho', label: 'Ancho del área', unidad: 'm', defecto: 4 },
-    { tipo: 'numero', clave: 'huecos', label: 'Huecos (columnas, ductos)', unidad: 'm²', defecto: 0 },
+    { tipo: 'huecos', clave: 'huecos', label: 'Huecos (columnas, ductos)' },
     { tipo: 'seccion', label: 'Plafón' },
     {
       tipo: 'opcion', clave: 'modulo', label: 'Módulo', defecto: '2x4',
@@ -196,7 +195,7 @@ export const plafon: Calculadora = {
   calcular(v) {
     const largo = num(v, 'largo');
     const ancho = num(v, 'ancho');
-    const area = Math.max(0, largo * ancho - num(v, 'huecos'));
+    const area = Math.max(0, largo * ancho - areaHuecos(v, 'huecos'));
     const perimetro = 2 * (largo + ancho);
     const desp = pct(v, 'desperdicio');
     const modulo = str(v, 'modulo') === '2x2' ? '2x2' : '2x4';
@@ -265,7 +264,7 @@ export const pintura: Calculadora = {
   campos: [
     { tipo: 'seccion', label: 'Superficie' },
     { tipo: 'numero', clave: 'area', label: 'Área a pintar', unidad: 'm²', defecto: 50, hint: 'Suma de todas las paredes y techos (largo × alto).' },
-    { tipo: 'numero', clave: 'huecos', label: 'Huecos (puertas, ventanas)', unidad: 'm²', defecto: 0 },
+    { tipo: 'huecos', clave: 'huecos', label: 'Huecos (puertas, ventanas)' },
     {
       tipo: 'opcion', clave: 'superficie', label: 'Superficie', defecto: 'lisa',
       opciones: [{ value: 'lisa', label: 'Lisa (pañete fino, sheetrock)' }, { value: 'rugosa', label: 'Rugosa (pañete grueso, block)' }],
@@ -276,7 +275,7 @@ export const pintura: Calculadora = {
     { tipo: 'toggle', clave: 'sellador', label: 'Aplicar sellador (1 mano)', defecto: true },
   ],
   calcular(v) {
-    const neta = Math.max(0, num(v, 'area') - num(v, 'huecos'));
+    const neta = Math.max(0, num(v, 'area') - areaHuecos(v, 'huecos'));
     const factor = str(v, 'superficie') === 'rugosa' ? RUGOSA_FACTOR : 1;
     const manos = Math.round(num(v, 'manos')) || 1;
     const rend = (num(v, 'rendimiento') || PINTURA_M2_GALON) * factor;

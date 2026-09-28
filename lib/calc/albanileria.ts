@@ -7,6 +7,7 @@ import {
   arriba, bool, campoCemento, claveVaciado, fmt, funda, lineasHormigon, lineasMortero,
   manoObra, MetodoHormigon, num, opcionesFc, opcionesMetodo, pct, r2, str,
 } from './util';
+import { areaHuecos } from './util';
 
 const opcionesProporcion = Object.keys(MORTEROS).map((p) => ({ value: p, label: p }));
 
@@ -157,7 +158,7 @@ export const block: Calculadora = {
     { tipo: 'seccion', label: 'Muro' },
     { tipo: 'numero', clave: 'largo', label: 'Largo del muro', unidad: 'm', defecto: 5 },
     { tipo: 'numero', clave: 'alto', label: 'Alto del muro', unidad: 'm', defecto: 2.6 },
-    { tipo: 'numero', clave: 'huecos', label: 'Huecos (puertas, ventanas)', unidad: 'm²', defecto: 0 },
+    { tipo: 'huecos', clave: 'huecos', label: 'Huecos (puertas, ventanas)' },
     { tipo: 'seccion', label: 'Block' },
     ...camposBlock(),
     { tipo: 'numero', clave: 'desperdicio', label: 'Desperdicio', unidad: '%', defecto: 5 },
@@ -180,7 +181,7 @@ export const block: Calculadora = {
     const largo = num(v, 'largo');
     const alto = num(v, 'alto');
     const bruta = largo * alto;
-    const neta = Math.max(0, bruta - num(v, 'huecos'));
+    const neta = Math.max(0, bruta - areaHuecos(v, 'huecos'));
     const desp = pct(v, 'desperdicio');
     const g = geometriaBlock(v);
     const c = funda(v);
@@ -261,7 +262,7 @@ export const losa: Calculadora = {
     { tipo: 'numero', clave: 'largo', label: 'Largo', unidad: 'm', defecto: 5 },
     { tipo: 'numero', clave: 'ancho', label: 'Ancho', unidad: 'm', defecto: 4 },
     { tipo: 'numero', clave: 'espesor', label: 'Espesor', unidad: 'cm', defecto: 12 },
-    { tipo: 'numero', clave: 'huecos', label: 'Huecos (escalera, ductos)', unidad: 'm²', defecto: 0 },
+    { tipo: 'huecos', clave: 'huecos', label: 'Huecos (escalera, ductos)' },
     { tipo: 'toggle', clave: 'encofrado', label: 'Lleva encofrado (losa aérea)', defecto: true },
     { tipo: 'seccion', label: 'Hormigón' },
     { tipo: 'opcion', clave: 'fc', label: "Resistencia f'c (kg/cm²)", defecto: '210', opciones: opcionesFc },
@@ -274,7 +275,7 @@ export const losa: Calculadora = {
   calcular(v) {
     const largo = num(v, 'largo');
     const ancho = num(v, 'ancho');
-    const area = Math.max(0, largo * ancho - num(v, 'huecos'));
+    const area = Math.max(0, largo * ancho - areaHuecos(v, 'huecos'));
     const e = num(v, 'espesor') / 100;
     const neto = area * e;
     const m3 = neto * (1 + pct(v, 'desperdicio'));

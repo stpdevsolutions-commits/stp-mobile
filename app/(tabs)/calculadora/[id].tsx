@@ -9,7 +9,7 @@ import {
   BooleanToggle, Hint, Label, OptionGroup,
 } from '../../../components/fichas/FormPrimitives';
 import {
-  Calculadora, Campo, fmt, getCalculadora, LineaMaterial, listaCompra, Resultado, Valores,
+  Calculadora, Campo, fmt, getCalculadora, Hueco, LineaMaterial, listaCompra, Resultado, Valores,
   valoresIniciales,
 } from '../../../lib/calc';
 import {
@@ -39,6 +39,95 @@ function NumeroField({ campo, value, onChange }: {
         />
         {campo.unidad ? <Text style={s.unit}>{campo.unidad}</Text> : null}
       </View>
+      {campo.hint ? <Hint>{campo.hint}</Hint> : null}
+    </>
+  );
+}
+
+function HuecosField({ campo, huecos, onChange }: {
+  campo: Extract<Campo, { tipo: 'huecos' }>;
+  huecos: Hueco[];
+  onChange: (h: Hueco[]) => void;
+}) {
+  const numDec = (t: string) => {
+    const x = parseFloat(String(t).replace(',', '.'));
+    return Number.isFinite(x) && x > 0 ? x : 0;
+  };
+  const setFila = (i: number, k: keyof Hueco, val: number) => {
+    const copia = huecos.map((h, j) => (j === i ? { ...h, [k]: val } : h));
+    onChange(copia);
+  };
+  const total = huecos.reduce((sm, h) => sm + Math.max(0, Math.round(Number(h.cantidad) || 0)), 0);
+  const area = huecos.reduce(
+    (sm, h) => sm + (Number(h.cantidad) || 0) * (Number(h.ancho) || 0) * (Number(h.alto) || 0),
+    0,
+  );
+  return (
+    <>
+      <Label>{campo.label}</Label>
+      {huecos.length === 0 ? (
+        <Text style={s.huecoVacio}>Sin huecos. Agrega cada puerta o ventana con su medida.</Text>
+      ) : null}
+      {huecos.map((h, i) => (
+        <View key={i} style={s.huecoRow}>
+          <View style={s.huecoCampo}>
+            <Text style={s.huecoMini}>Ancho (m)</Text>
+            <TextInput
+              style={s.huecoInput}
+              value={h.ancho ? String(h.ancho) : ''}
+              onChangeText={(t) => setFila(i, 'ancho', numDec(t))}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor="#C0CADB"
+              selectTextOnFocus
+            />
+          </View>
+          <Text style={s.huecoX}>x</Text>
+          <View style={s.huecoCampo}>
+            <Text style={s.huecoMini}>Alto (m)</Text>
+            <TextInput
+              style={s.huecoInput}
+              value={h.alto ? String(h.alto) : ''}
+              onChangeText={(t) => setFila(i, 'alto', numDec(t))}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor="#C0CADB"
+              selectTextOnFocus
+            />
+          </View>
+          <View style={s.huecoCant}>
+            <Text style={s.huecoMini}>Cant.</Text>
+            <TextInput
+              style={s.huecoInput}
+              value={h.cantidad ? String(h.cantidad) : ''}
+              onChangeText={(t) => setFila(i, 'cantidad', Math.max(0, Math.round(numDec(t))))}
+              keyboardType="number-pad"
+              placeholder="1"
+              placeholderTextColor="#C0CADB"
+              selectTextOnFocus
+            />
+          </View>
+          <TouchableOpacity
+            style={s.huecoDel}
+            onPress={() => onChange(huecos.filter((_, j) => j !== i))}
+            accessibilityLabel="Quitar hueco"
+          >
+            <Ionicons name="close" size={18} color="#B91C1C" />
+          </TouchableOpacity>
+        </View>
+      ))}
+      <TouchableOpacity
+        style={s.huecoAdd}
+        onPress={() => onChange([...huecos, { ancho: 0, alto: 0, cantidad: 1 }])}
+      >
+        <Ionicons name="add-circle-outline" size={18} color="#1565C0" />
+        <Text style={s.huecoAddText}>Agregar hueco</Text>
+      </TouchableOpacity>
+      {huecos.length > 0 ? (
+        <Text style={s.huecoTotal}>
+          {total} {total === 1 ? 'hueco' : 'huecos'} · {fmt(area, 2)} m²
+        </Text>
+      ) : null}
       {campo.hint ? <Hint>{campo.hint}</Hint> : null}
     </>
   );
@@ -75,6 +164,14 @@ function Formulario({ campos, valores, set }: {
                 />
                 {c.hint ? <Hint>{c.hint}</Hint> : null}
               </View>
+            );
+          case 'huecos':
+            return (
+              <HuecosField
+                key={c.clave} campo={c}
+                huecos={Array.isArray(valores[c.clave]) ? (valores[c.clave] as Hueco[]) : []}
+                onChange={(h) => set({ [c.clave]: h })}
+              />
             );
           case 'toggle':
             return (
@@ -166,6 +263,12 @@ function datosDelFormulario(calc: Calculadora, v: Valores): { label: string; val
     const raw = v[c.clave];
     if (c.tipo === 'numero') out.push({ label: c.label, valor: `${raw || '0'}${c.unidad ? ` ${c.unidad}` : ''}` });
     else if (c.tipo === 'opcion') out.push({ label: c.label, valor: c.opciones.find((o) => o.value === raw)?.label ?? String(raw) });
+    else if (c.tipo === 'huecos') {
+      const hs = Array.isArray(raw) ? (raw as Hueco[]) : [];
+      const tot = hs.reduce((sm, h) => sm + Math.max(0, Math.round(Number(h.cantidad) || 0)), 0);
+      const ar = hs.reduce((sm, h) => sm + (Number(h.cantidad) || 0) * (Number(h.ancho) || 0) * (Number(h.alto) || 0), 0);
+      out.push({ label: c.label, valor: hs.length ? `${tot} (${fmt(ar, 2)} m²)` : '0' });
+    }
     else out.push({ label: c.label, valor: raw === true ? 'Sí' : 'No' });
   }
   return out;
@@ -398,6 +501,17 @@ const s = StyleSheet.create({
     color: '#0D1B2A',
   },
   unit: { width: 64, marginLeft: 10, fontSize: 14, color: '#64748B', fontWeight: '600' },
+  huecoVacio: { fontSize: 13, color: '#94A3B8', marginBottom: 6 },
+  huecoRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 8 },
+  huecoCampo: { flex: 1 },
+  huecoCant: { width: 58 },
+  huecoMini: { fontSize: 11, color: '#64748B', marginBottom: 2, fontWeight: '600' },
+  huecoInput: { borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, fontSize: 15, backgroundColor: '#F8FAFC', color: '#0D1B2A' },
+  huecoX: { fontSize: 15, color: '#94A3B8', paddingBottom: 10 },
+  huecoDel: { padding: 6, paddingBottom: 9 },
+  huecoAdd: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  huecoAddText: { color: '#1565C0', fontWeight: '700', fontSize: 14 },
+  huecoTotal: { fontSize: 13, color: '#0D1B2A', fontWeight: '700', marginTop: 2 },
 
   resultadoTitulo: { fontSize: 18, fontWeight: '800', color: '#0D1B2A', marginTop: 8, marginBottom: 10 },
 

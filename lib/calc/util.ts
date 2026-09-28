@@ -1,7 +1,7 @@
 import {
   CEMENTOS, CUADRILLAS, ClaveCuadrilla, HORMIGONES, MORTEROS,
 } from './constantes';
-import { Campo, LineaManoObra, LineaMaterial, Valores } from './types';
+import { Campo, Hueco, LineaManoObra, LineaMaterial, Valores } from './types';
 
 /** Lee un número del formulario. Acepta coma decimal ("2,5"); vacío o inválido = 0. */
 export function num(v: Valores, clave: string): number {
@@ -39,10 +39,40 @@ export function fmt(n: number, dec = 2): string {
 }
 
 /** Valores iniciales de un formulario a partir de los defectos de sus campos. */
+/** Lista de huecos del formulario (campo tipo 'huecos'). */
+export function listaHuecos(v: Valores, clave: string): Hueco[] {
+  const raw = v[clave];
+  return Array.isArray(raw) ? (raw as Hueco[]) : [];
+}
+
+/** Area total de los huecos (suma de cantidad x ancho x alto), en m2.
+ *  Acepta el formato viejo (un solo numero en m2) por compatibilidad. */
+export function areaHuecos(v: Valores, clave: string): number {
+  const raw = v[clave];
+  if (Array.isArray(raw)) {
+    return raw.reduce(
+      (s, h) =>
+        s + (Number(h?.cantidad) || 0) * (Number(h?.ancho) || 0) * (Number(h?.alto) || 0),
+      0,
+    );
+  }
+  const n = parseFloat(String(raw ?? '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** Cantidad total de huecos (suma de cantidad). */
+export function contarHuecos(v: Valores, clave: string): number {
+  return listaHuecos(v, clave).reduce(
+    (s, h) => s + Math.max(0, Math.round(Number(h?.cantidad) || 0)),
+    0,
+  );
+}
+
 export function valoresIniciales(campos: Campo[]): Valores {
   const v: Valores = {};
   for (const c of campos) {
     if (c.tipo === 'seccion') continue;
+    if (c.tipo === 'huecos') { v[c.clave] = []; continue; }
     v[c.clave] = c.tipo === 'numero' ? String(c.defecto) : c.defecto;
   }
   return v;
