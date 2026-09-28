@@ -73,6 +73,8 @@ export const sheetrock: Calculadora = {
     const densglass = str(v, 'material') === 'densglass';
     const material = MATERIALES_PANEL[str(v, 'material')] ?? MATERIALES_PANEL.regular;
     const perfil = str(v, 'perfil');
+    // Sanitize perfil for use as material clave key: '3-5/8' → '3_5_8'
+    const perfilId = perfil.replace(/[^a-z0-9]/g, '_');
 
     const planchasCara = arriba((neta * (1 + desp)) / plancha.m2);
     const sep = str(v, 'separacion') === '24' ? 0.61 : 0.406;
@@ -97,12 +99,12 @@ export const sheetrock: Calculadora = {
         titulo: 'Estructura',
         lineas: [
           {
-            clave: `paral_${perfil}`, descripcion: `Paral ${perfil}" × ${fmt(pp.largo / 0.3048, 0)}'`,
+            clave: `paral_${perfilId}`, descripcion: `Paral ${perfil}" × ${fmt(pp.largo / 0.3048, 0)}'`,
             cantidad: arriba(parales * pp.piezas * (1 + desp)), unidad: 'unidades',
             detalle: `${parales} parales cada ${str(v, 'separacion')}"`,
           },
           {
-            clave: `canal_${perfil}`, descripcion: `Canal ${perfil}" × 10'`,
+            clave: `canal_${perfilId}`, descripcion: `Canal ${perfil}" × 10'`,
             cantidad: arriba((canalM * (1 + desp)) / PERFIL_LARGOS_M[0]), unidad: 'unidades',
             detalle: `${fmt(canalM)} ml`,
           },
