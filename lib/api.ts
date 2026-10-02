@@ -29,6 +29,13 @@ export const api = axios.create({
 // la rotación del backend, el segundo fallaría por token ya revocado.
 let refreshInFlight: Promise<string | null> | null = null;
 
+// Por qué devolvió null el último refresh: true = el servidor RECHAZÓ el
+// refresh token (sesión realmente vencida/revocada); false = no se pudo
+// preguntar (sin señal, timeout, 5xx). Solo en el primer caso hay que cerrar
+// sesión: si no, un técnico con mala cobertura quedaba fuera de la app por un
+// simple corte de red.
+let refreshRechazado = false;
+
 // Callback que registra auth-context para reaccionar (setUser(null) → login).
 let sessionExpiredListener: (() => void) | null = null;
 export function onSessionExpired(listener: (() => void) | null) {
@@ -55,16 +62,25 @@ async function saveSession(body: { access_token: string; refresh_token?: string 
 async function refreshSession(): Promise<string | null> {
   try {
     const refreshToken = await SecureStore.getItemAsync('refresh_token');
-    if (!refreshToken) return null;
+    if (!refreshToken) {
+      refreshRechazado = true;
+      return null;
+    }
     const { data } = await axios.post<{ access_token: string; refresh_token: string }>(
       `${API_URL}/auth/refresh`,
       { refresh_token: refreshToken },
       { timeout: 30000 },
     );
-    if (typeof data?.access_token !== 'string' || !data.access_token) return null;
+    if (typeof data?.access_token !== 'string' || !data.access_token) {
+      refreshRechazado = false;
+      return null;
+    }
     await saveSession(data);
+    refreshRechazado = false;
     return data.access_token;
-  } catch {
+  } catch (e) {
+    const status = (e as AxiosError)?.response?.status;
+    refreshRechazado = status === 400 || status === 401 || status === 403;
     return null;
   }
 }
@@ -122,9 +138,13 @@ api.interceptors.response.use(
         config.headers.Authorization = `Bearer ${newToken}`;
         return api.request(config);
       }
-      // Refresh fallido: sesión realmente vencida → cerrar sesión.
-      await clearSession();
-      sessionExpiredListener?.();
+      // Solo si el servidor rechazó el refresh la sesión está realmente
+      // vencida. Si fue la red, se deja la sesión y la petición falla; la
+      // cola offline reintenta cuando haya señal.
+      if (refreshRechazado) {
+        await clearSession();
+        sessionExpiredListener?.();
+      }
     }
     return Promise.reject(err as Error);
   },
